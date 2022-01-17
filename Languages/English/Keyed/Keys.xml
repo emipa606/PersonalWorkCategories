@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <personalWorkCategories_selectPreset>Select preset</personalWorkCategories_selectPreset>
+  <personalWorkCategories_copy>Copy</personalWorkCategories_copy>
+  <personalWorkCategories_copyPreset>Copy preset</personalWorkCategories_copyPreset>
+  <personalWorkCategories_deletePreset>Delete preset</personalWorkCategories_deletePreset>
+  <personalWorkCategories_current>Current</personalWorkCategories_current>  
+  
+  <personalWorkCategories_splitGroup>Split group</personalWorkCategories_splitGroup>
+  <personalWorkCategories_resetToDefault>Reset to default</personalWorkCategories_resetToDefault>
+  
+  <personalWorkCategories_groupLabel>Group Label</personalWorkCategories_groupLabel>
+  <personalWorkCategories_pawnLabel>Pawn Label</personalWorkCategories_pawnLabel>
+  <personalWorkCategories_gerungLabel>Gerund Label</personalWorkCategories_gerungLabel>
+  <personalWorkCategories_description>Description</personalWorkCategories_description>
+  <personalWorkCategories_verb>Verb</personalWorkCategories_verb>
+    <personalWorkCategories_deleteGroup>Delete group</personalWorkCategories_deleteGroup>
+	
+    <personalWorkCategories_rebootGame>Reboot the game to activate new settings</personalWorkCategories_rebootGame>
+  <personalWorkCategories_selectWorkType>Select a work type</personalWorkCategories_selectWorkType>
+  <personalWorkCategories_presetDoesNotMatch>This preset does not match the current version of the game</personalWorkCategories_presetDoesNotMatch>
+  <personalWorkCategories_tryToFix>Try to fix</personalWorkCategories_tryToFix>
+  <personalWorkCategories_fixed>Fixed</personalWorkCategories_fixed>  
+  <personalWorkCategories_cantChangeDefault>The default preset cannot be changed</personalWorkCategories_cantChangeDefault>
+  <personalWorkCategories_root>Root</personalWorkCategories_root>
+  
+  <personalWorkCategories_warningHeader>From mod: Personal Work Categories</personalWorkCategories_warningHeader>
+  <personalWorkCategories_warningBody>The list of available works has changed. The mod automatically switched to the default preset. Go to the settings for passing the recovery procedure.</personalWorkCategories_warningBody>
+</LanguageData>

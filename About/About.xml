@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Personal Work Categories</name>
+	<author>Densevoid</author>    
+	<supportedVersions>
+        <li>1.3</li>
+	</supportedVersions>
+	<packageId>densevoid.hui.personalworkcat</packageId>
+	<description>
+		The mod allows you to separate tasks in their own group in order to be able to independently assign priorities to these tasks for workers. Additionally, this mod allows you to change the order of tasks.
+
+		Several ideas that can be implemented:
+		1. Separate urgent medical procedures and put them in priority in front of the rest of the work.
+		2. Separate surgical operations in a separate group so that they can be appointed only the most experienced doctors.
+		3. Separate the construction of furniture in a separate group so that only the most experienced builders can be allowed for this work, and the others leave to build walls, floors and polish.
+		4. Separate manufacturers of stone blocks into a separate category in order not to mix them with experienced crafters.
+
+		Experts did not show errors when exposed to the existing saving. 
+	</description>
+</ModMetaData>
