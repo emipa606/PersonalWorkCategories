@@ -1,7 +1,9 @@
 ﻿using HandyUI_PersonalWorkCategories.Utils;
 using HarmonyLib;
 using RimWorld;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using Verse;
 using static HandyUI_PersonalWorkCategories.PersonalWorkCategoriesSettings;
 
@@ -13,14 +15,22 @@ namespace HandyUI_PersonalWorkCategories.Patch
     {
         static void Prefix()
         {            
-            bool compareResult = PersonalWorkCategories.Settings.ProceedDefaultHashComparing(
-                DefDatabase<WorkTypeDef>.AllDefsListForReading, 
-                DefDatabase<WorkGiverDef>.AllDefsListForReading);
-
-            if (compareResult)
+            try
             {
-                ChangeWorkTypes();
-                ChangeWorkGivers();
+                bool compareResult = PersonalWorkCategories.Settings.ProceedDefaultHashComparing(
+                    DefDatabase<WorkTypeDef>.AllDefsListForReading,
+                    DefDatabase<WorkGiverDef>.AllDefsListForReading);
+
+                if (compareResult)
+                {
+                    ChangeWorkTypes();
+                    ChangeWorkGivers();
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error("personalWorkCategories_loadingError".Translate());
+                Log.Error("personalWorkCategories_loadingErrorMessage".Translate() + " " + e);
             }
         }
 
@@ -41,29 +51,33 @@ namespace HandyUI_PersonalWorkCategories.Patch
                 if (extraIndex >= 0)
                 {
                     string root = mod.GetRootOfWorkType(workType);
-                    WorkTypeDef rootDef = inGameWorkTypes.Find(wt => wt.defName == root);
-                    if (rootDef == null)
-                    {
-                        Log.Message("Can't find work type " + root);
-                        continue;
-                    }
+
                     WorkTypeDef extraWorkDef = new WorkTypeDef();
                     ExtraWorkGroup extraWorkCustoms = mod.extraWorks[extraIndex];
 
+                    string emptyValue = "personalWorkCategories_emptyValue".Translate().RawText;
+
                     extraWorkDef.defName = extraWorkCustoms.defName;
                     extraWorkDef.labelShort = extraWorkCustoms.labelShort;
-                    extraWorkDef.pawnLabel = extraWorkCustoms.pawnLabel;
-                    extraWorkDef.gerundLabel = extraWorkCustoms.gerundLabel;
-                    extraWorkDef.description = extraWorkCustoms.description;
-                    extraWorkDef.verb = extraWorkCustoms.verb;
-                    extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
-                    extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
-                    extraWorkDef.workTags = rootDef.workTags;
-                    extraWorkDef.relevantSkills = rootDef.relevantSkills;
-                    extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
-                    extraWorkDef.disabledForSlaves = rootDef.disabledForSlaves;
-                    extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
+                    extraWorkDef.pawnLabel = string.IsNullOrEmpty(extraWorkCustoms.pawnLabel) ? emptyValue : extraWorkCustoms.pawnLabel;
+                    extraWorkDef.gerundLabel = string.IsNullOrEmpty(extraWorkCustoms.gerundLabel) ? emptyValue : extraWorkCustoms.gerundLabel;
+                    extraWorkDef.description = string.IsNullOrEmpty(extraWorkCustoms.description) ? emptyValue : extraWorkCustoms.description;
+                    extraWorkDef.verb = string.IsNullOrEmpty(extraWorkCustoms.verb) ? emptyValue : extraWorkCustoms.verb;
+
+                    WorkTypeDef rootDef = inGameWorkTypes.Find(wt => wt.defName == root);
+                    if (rootDef != null)
+                    {
+                        extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
+                        extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
+                        extraWorkDef.workTags = rootDef.workTags;
+                        extraWorkDef.relevantSkills = rootDef.relevantSkills;
+                        extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
+                        extraWorkDef.disabledForSlaves = rootDef.disabledForSlaves;
+                        extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
+                    }
+
                     extraWorkDef.naturalPriority = (allWorkTypes.Count - i) * 50;
+                    if (mod.works.GetByKey(workType).Count <= 0) extraWorkDef.visible = false;
 
                     moddedWorkTypes.Add(extraWorkDef);
                 }
@@ -76,6 +90,8 @@ namespace HandyUI_PersonalWorkCategories.Patch
                         continue;
                     }
                     workTypeDef.naturalPriority = (allWorkTypes.Count - i) * 50;
+                    if (mod.works.GetByKey(workType).Count <= 0) workTypeDef.visible = false;
+
                     moddedWorkTypes.Add(workTypeDef);
                 }
 
@@ -86,7 +102,6 @@ namespace HandyUI_PersonalWorkCategories.Patch
 
         private static void ChangeWorkGivers()
         {
-
             PersonalWorkCategoriesSettings mod = PersonalWorkCategories.Settings;
 
             List<string> allWorkTypes = mod.works.GetKeysAsList();
@@ -105,6 +120,7 @@ namespace HandyUI_PersonalWorkCategories.Patch
 
                     workGiverDef.workType = DefDatabase<WorkTypeDef>.GetNamed(workType);
                     workGiverDef.priorityInType = (allWorkGivers.Count - i) * 10;
+                    i++;
                 }
             }
         }

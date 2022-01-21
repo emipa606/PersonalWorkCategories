@@ -26,4 +26,18 @@
   
   <personalWorkCategories_warningHeader>Сообщение от мода Personal Work Categories</personalWorkCategories_warningHeader>
   <personalWorkCategories_warningBody>Список доступных работ был изменён. Мод автоматически переключён на стандартный набор. Зайдите в настройки мода для прохождения процедуры восстановления.</personalWorkCategories_warningBody>
+	
+	<personalWorkCategories_custom>Работа</personalWorkCategories_custom>
+	<personalWorkCategories_customGroup>Пользовательская</personalWorkCategories_customGroup>
+	<personalWorkCategories_createCustomGroup>Создать пользовательскую группу</personalWorkCategories_createCustomGroup>
+	<personalWorkCategories_beCarefulWithCustomGroups>Будьте осторожны. Заблокированные предысторией пешки типы работ станут доступны для неё если будут размещены в пользовательской группе. </personalWorkCategories_beCarefulWithCustomGroups>
+	
+	<personalWorkCategories_emptyValue>Пусто</personalWorkCategories_emptyValue>
+	
+	<personalWorkCategories_loadingError>Personal Work Categories: Что-то пошло не так во время загрузки мода.</personalWorkCategories_loadingError>
+	<personalWorkCategories_loadingErrorMessage>Сообщение ошибки:</personalWorkCategories_loadingErrorMessage>
+	
+	<personalWorkCategories_dragTheWorks>Нажмите на группу для просмотра её содержимого.\nПеретягивайте элементы для изменения их порядка.</personalWorkCategories_dragTheWorks>
+	
+	<personalWorkCategories_hidden>скрыта</personalWorkCategories_hidden>
 </LanguageData>

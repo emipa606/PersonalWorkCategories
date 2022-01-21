@@ -167,6 +167,9 @@ namespace HandyUI_PersonalWorkCategories
         internal bool isNeedToShowWarning;
         internal bool isChangesOccurred;
 
+        const float elementHeight = 50f;
+        const float elementGap = 4f;
+
         public override void ExposeData()
         {
             base.ExposeData();
@@ -355,51 +358,24 @@ namespace HandyUI_PersonalWorkCategories
                             Rect splitWorkTypeRect = new Rect(curX, curY, standartButtonWidth, standartButtonHeight);
                             if (Widgets.ButtonText(splitWorkTypeRect, "personalWorkCategories_splitGroup".Translate(), true, true, true))
                             {
-                                int i = 1;
-                                int ind = -1;
-                                string extraWorkGroupName;
-                                do
-                                {
-                                    i++;
-                                    extraWorkGroupName = selectedWorkType + i;
-                                    ind = extraWorks.FindIndex(wg => wg.defName == extraWorkGroupName);
-                                }
-                                while (ind != -1);
-
-                                WorkTypeDef rootDef = DefDatabase<WorkTypeDef>.GetNamed(selectedWorkType);
-
-                                ExtraWorkGroup ewg = new ExtraWorkGroup
-                                {
-                                    root = selectedWorkType,
-                                    defName = extraWorkGroupName,
-                                    labelShort = rootDef.labelShort + i,
-                                    pawnLabel = rootDef.pawnLabel,
-                                    gerundLabel = rootDef.gerundLabel,
-                                    description = rootDef.description,
-                                    verb = rootDef.verb
-                                };
-
-                                extraWorks.Add(ewg);
-
-                                int selectedWorkIndex = works.IndexOf(selectedWorkType) + 1;
-                                works.Insert(selectedWorkIndex, extraWorkGroupName, new List<string>());
-
-                                selectedWorkType = extraWorkGroupName;
-                                isChangesOccurred = true;
+                                SplitSelectedGroup();
                             }
 
                             Rect resetToDefaultRect = new Rect(splitWorkTypeRect) { x = splitWorkTypeRect.x + (splitWorkTypeRect.width + BUTTONS_GAP) * 1 };
                             if (Widgets.ButtonText(resetToDefaultRect, "personalWorkCategories_resetToDefault".Translate(), true, true, true))
                             {
                                 List<string> defaultGivers = worksByPresets[DEFAULT_PRESET].GetByKey(selectedWorkType).ListFullCopy();
-                                works.SetAt(works.IndexOf(selectedWorkType), defaultGivers);
                                 foreach (ExtraWorkGroup ewg in extraWorks)
                                 {
-                                    if (ewg.root == selectedWorkType)
+                                    foreach (string workGiver in works.GetByKey(ewg.defName).ListFullCopy())
                                     {
-                                        works.GetByKey(ewg.defName).Clear();
+                                        if (defaultGivers.Contains(workGiver))
+                                        {
+                                            works.GetByKey(ewg.defName).Remove(workGiver);
+                                        }
                                     }
                                 }
+                                works.SetAt(works.IndexOf(selectedWorkType), defaultGivers);
                             }
 
                             curY += splitWorkTypeRect.height;
@@ -433,12 +409,7 @@ namespace HandyUI_PersonalWorkCategories
                             Rect deleteGroupButRect = new Rect(curX, curY, standartButtonWidth, standartButtonHeight);
                             if (Widgets.ButtonText(deleteGroupButRect, "personalWorkCategories_deleteGroup".Translate(), true, true, true))
                             {
-                                string root = GetRootOfWorkType(selectedWorkType);
-                                List<string> currentGivers = works.GetByKey(selectedWorkType);
-                                works.GetByKey(root).AddRange(currentGivers);
-                                works.Remove(selectedWorkType);
-                                extraWorks.RemoveAt(extraIndex);
-                                selectedWorkType = root;
+                                DeleteSelectedGroup();
                             }
                             curY += deleteGroupButRect.height;
                         }
@@ -450,7 +421,26 @@ namespace HandyUI_PersonalWorkCategories
                         workTypesContainerHeight = curY - upperY;
                     }
 
-                    if (isChangesOccurred)
+                    curY = inRect.yMax - (standartButtonHeight * 3 + 10f);
+
+                    if (Widgets.ButtonText(
+                        new Rect(0, curY, centerX - HALFS_GAP, standartButtonHeight),
+                        "personalWorkCategories_createCustomGroup".Translate()))
+                    {
+                        CreateNewCustomGroup();
+                    }
+
+                    curY += standartButtonHeight + 2f;
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = Color.gray;
+                    Widgets.Label(new Rect(0, curY, centerX - HALFS_GAP, 100f),
+                        "personalWorkCategories_beCarefulWithCustomGroups".Translate()); ;
+                    Text.Font = GameFont.Small;
+                    GUI.color = Color.white;
+
+                    curY += standartButtonHeight + 5f;
+
+                    if (true)
                     {
                         if (Widgets.ButtonText(
                             new Rect(0, inRect.yMax - standartButtonHeight, centerX - HALFS_GAP, standartButtonHeight),
@@ -463,12 +453,20 @@ namespace HandyUI_PersonalWorkCategories
 
                     // right window part
                     curY = 45f;
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = Color.gray;
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    Widgets.Label(new Rect() { x = centerX, y = curY, xMax = inRect.xMax - CONTAINER_PADDING, height = 30f }, "personalWorkCategories_dragTheWorks".Translate());
+                    Text.Font = GameFont.Small;
+                    GUI.color = Color.white;
+                    Text.Anchor = TextAnchor.UpperLeft;
 
+                    curY += 35f;
                     Rect workTypesRect = new Rect(inRect) { x = centerX, y = curY, width = columnWidth, yMax = inRect.yMax };
 
                     List<string> workTypesList = works.GetKeysAsList();
 
-                    currentDropPosition = new WorkElement(Category.Undefined, null);
+                    currentDropPosition = new WorkElement(Category.Undefined);
                     currentMouseOverColumnType = Category.Undefined;
 
                     DrawList(Category.Types, workTypesRect, ref workTypesScrollPosition, workTypesList,
@@ -578,14 +576,12 @@ namespace HandyUI_PersonalWorkCategories
 
             int rowsCount = data.EnumerableCount();
 
-            const float GAP = 4f;
-            Rect elementRect = new Rect(0f, 0f, inRect.width - 18f, 50f);
-            Rect viewRect = new Rect(elementRect) { height = rowsCount * (elementRect.height + GAP) };
+            Rect elementRect = new Rect(0f, 0f, inRect.width - 18f, elementHeight);
+            Rect viewRect = new Rect(elementRect) { height = rowsCount * (elementRect.height + elementGap) };
 
             IEnumerator<string> worksList = data.GetEnumerator();
 
             Widgets.BeginScrollView(inRect, ref scrollPosition, viewRect);
-
             float yPosition = 0f;
 
             while (worksList.MoveNext())
@@ -601,10 +597,11 @@ namespace HandyUI_PersonalWorkCategories
 
                     if (column == Category.Types && draggedElement.element.category == Category.Givers)
                     {
-                        string draggedParentDef = GetWorkTypeOfWorkGIver(draggedElement.element.name);
-                        string draggedParentRoot = GetRootOfWorkType(draggedParentDef);
+                        string draggedDefaultRoot = GetDefaultTypeOfGiver(draggedElement.element.name);
                         string thisRoot = GetRootOfWorkType(worksList.Current);
-                        isAvailable = draggedParentRoot == thisRoot;
+                        bool isCustomGroup = (GetExtraWorkIndex(worksList.Current) >= 0 && thisRoot == worksList.Current);
+
+                        isAvailable = draggedDefaultRoot == thisRoot || isCustomGroup;
                         if (isAvailable) status = ElementStatus.Available;
                         else status = ElementStatus.Forbidden;
                     }
@@ -626,11 +623,11 @@ namespace HandyUI_PersonalWorkCategories
                     {
                         if (reaction == FloatingElement.DragReaction.Spread)
                         {
-                            yPosition += elementRect.yMax + GAP;
+                            yPosition += elementRect.yMax + elementGap;
                         }
                     }
                     drawElement(new Rect(elementRect) { y = yPosition }, worksList.Current, status);
-                    yPosition += elementRect.yMax + GAP;
+                    yPosition += elementRect.yMax + elementGap;
                 }
             }
 
@@ -672,19 +669,32 @@ namespace HandyUI_PersonalWorkCategories
                 Widgets.DrawLightHighlight(inRect);
             }
 
+            Rect labelRect = inRect.ContractedBy(3f);
             if (status == ElementStatus.Forbidden) GUI.color = Color.gray;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(new Rect(inRect) { xMin = inRect.x + 5f }, GetWorkTypeLabel(name));
+            Widgets.Label(labelRect, GetWorkTypeLabel(name));
+
+            Text.Anchor = TextAnchor.UpperRight;
+            GUI.color = Color.gray;
+            Text.Font = GameFont.Tiny;
+            int count = works.GetByKey(name).Count();
+            string giversCount = count.ToString() + (count == 0 ? " (" + "personalWorkCategories_hidden".Translate().RawText + ")" : "");
+
+            Widgets.Label(labelRect, giversCount);
 
             int extraIndex = GetExtraWorkIndex(name);
             if (extraIndex >= 0)
             {
                 Text.Anchor = TextAnchor.LowerRight;
-                GUI.color = Color.gray;
-                Text.Font = GameFont.Tiny;
-                Widgets.Label(new Rect(inRect) { xMax = inRect.xMax - 5f }, "personalWorkCategories_root".Translate() + ": " + GetWorkTypeLabel(extraWorks[extraIndex].root));
-                Text.Font = GameFont.Small;
+                string littleGrayText = "";
+                if (extraWorks[extraIndex].root != null)
+                    littleGrayText = "personalWorkCategories_root".Translate() + ": " + GetWorkTypeLabel(extraWorks[extraIndex].root);
+                else
+                {
+                    littleGrayText = "personalWorkCategories_customGroup".Translate();
+                }
+                Widgets.Label(labelRect, littleGrayText);
             }
+            Text.Font = GameFont.Small;
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
         }
@@ -744,7 +754,7 @@ namespace HandyUI_PersonalWorkCategories
             }
         }
 
-        private string GetWorkTypeOfWorkGIver(string workGiver)
+        private string GetWorkTypeOfWorkGiver(string workGiver)
         {
             foreach (string workType in works.GetKeysAsList())
             {
@@ -755,14 +765,37 @@ namespace HandyUI_PersonalWorkCategories
             return null;
         }
 
+        private string GetDefaultWorkTypeOfWorkGiver(string workGiver)
+        {
+            foreach (string workType in worksByPresets[DEFAULT_PRESET].GetKeysAsList())
+            {
+                if (worksByPresets[DEFAULT_PRESET].GetByKey(workType).Contains(workGiver))
+                    return workType;
+            }
+
+            return null;
+        }
+
         private void MoveWorkType(WorkElement source, WorkElement target)
         {
-            if (target.category != Category.Types) return;
+            if (target.category == Category.Givers) return;
 
             List<string> workGiverList = works.GetByKey(source.name);
-            works.Remove(source.name);
-            int index = works.IndexOf(target.name);
-            works.Insert(index, source.name, workGiverList);
+
+            switch (target.category)
+            {
+                case Category.Types:
+                    works.Remove(source.name);
+                    int index = works.IndexOf(target.name);
+                    works.Insert(index, source.name, workGiverList);
+                    break;
+
+                case Category.Undefined:
+                    works.Remove(source.name);
+                    works.Add(source.name, workGiverList);
+                    break;
+            }
+
             isChangesOccurred = true;
         }
 
@@ -771,7 +804,7 @@ namespace HandyUI_PersonalWorkCategories
             switch (target.category)
             {
                 case Category.Types:
-                    string sourceParent = GetWorkTypeOfWorkGIver(source.name);
+                    string sourceParent = GetWorkTypeOfWorkGiver(source.name);
                     if (selectedWorkType != sourceParent)
                     {
                         RemoveWorkGiverFromParent(source.name);
@@ -786,7 +819,7 @@ namespace HandyUI_PersonalWorkCategories
 
                 case Category.Givers:
                     RemoveWorkGiverFromParent(source.name);
-                    string parentWorkType = GetWorkTypeOfWorkGIver(target.name);
+                    string parentWorkType = GetWorkTypeOfWorkGiver(target.name);
                     List<string> list2 = works.GetByKey(parentWorkType);
                     if (list2 != null)
                     {
@@ -829,6 +862,21 @@ namespace HandyUI_PersonalWorkCategories
             {
                 return extraWorks[index].labelShort.CapitalizeFirst();
             }
+        }
+
+        internal string GetDefaultTypeOfGiver(string defName)
+        {
+            string defaultType = null;
+            foreach (string type in worksByPresets[DEFAULT_PRESET].GetKeysAsList())
+            {
+                if (worksByPresets[DEFAULT_PRESET].GetByKey(type).Contains(defName))
+                {
+                    defaultType = type;
+                    break;
+                }
+            }
+
+            return defaultType;
         }
 
         internal string GetRootOfWorkType(string defName)
@@ -989,6 +1037,103 @@ namespace HandyUI_PersonalWorkCategories
             selectedPreset = to;
             editablePresetName = to;
             isChangesOccurred = true;
+        }
+
+        private void DeleteSelectedGroup()
+        {
+            int extraIndex = GetExtraWorkIndex(selectedWorkType);
+            string root = GetRootOfWorkType(selectedWorkType);
+            List<string> currentGivers = works.GetByKey(selectedWorkType);
+            string nowSelected = null;
+
+            if (selectedWorkType == root)
+            {
+                foreach (string workGiver in currentGivers)
+                {
+                    string parent = GetDefaultWorkTypeOfWorkGiver(workGiver);
+                    works.GetByKey(parent).Add(workGiver);
+                }
+            }
+            else
+            {
+                works.GetByKey(root).AddRange(currentGivers);
+                nowSelected = root;
+            }
+
+            works.Remove(selectedWorkType);
+            extraWorks.RemoveAt(extraIndex);
+            selectedWorkType = nowSelected;
+        }
+
+        private void SplitSelectedGroup()
+        {
+            int i = 1;
+            int ind = -1;
+            string extraWorkGroupName;
+            do
+            {
+                i++;
+                extraWorkGroupName = selectedWorkType + i;
+                ind = extraWorks.FindIndex(wg => wg.defName == extraWorkGroupName);
+            }
+            while (ind != -1);
+
+            WorkTypeDef rootDef = DefDatabase<WorkTypeDef>.GetNamed(selectedWorkType);
+
+            ExtraWorkGroup ewg = new ExtraWorkGroup
+            {
+                root = selectedWorkType,
+                defName = extraWorkGroupName,
+                labelShort = rootDef.labelShort + i,
+                pawnLabel = rootDef.pawnLabel,
+                gerundLabel = rootDef.gerundLabel,
+                description = rootDef.description,
+                verb = rootDef.verb
+            };
+
+            extraWorks.Add(ewg);
+
+            int selectedWorkIndex = works.IndexOf(selectedWorkType) + 1;
+            works.Insert(selectedWorkIndex, extraWorkGroupName, new List<string>());
+
+            selectedWorkType = extraWorkGroupName;
+            isChangesOccurred = true;
+        }
+
+        private void CreateNewCustomGroup()
+        {
+            int i = 0;
+            int ind = -1;
+            string extraWorkGroupName;
+            do
+            {
+                i++;
+                extraWorkGroupName = "custom" + (i > 1 ? i.ToString() : "");
+                ind = extraWorks.FindIndex(wg => wg.defName == extraWorkGroupName);
+            }
+            while (ind != -1);
+
+            ExtraWorkGroup ewg = new ExtraWorkGroup
+            {
+                defName = extraWorkGroupName,
+                labelShort = "personalWorkCategories_custom".Translate(),
+            };
+
+            extraWorks.Add(ewg);
+
+            if (selectedWorkType != null)
+            {
+                int selectedWorkIndex = works.IndexOf(selectedWorkType) + 1;
+                works.Insert(selectedWorkIndex, extraWorkGroupName, new List<string>());
+            }
+            else
+            {
+                works.Add(extraWorkGroupName, new List<string>());
+                float yPos = works.IndexOf(extraWorkGroupName) * (elementHeight + elementGap);
+                workTypesScrollPosition.y = yPos;
+            }
+
+            selectedWorkType = extraWorkGroupName;
         }
     }
 }
