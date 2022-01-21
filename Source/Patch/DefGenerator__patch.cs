@@ -55,14 +55,14 @@ namespace HandyUI_PersonalWorkCategories.Patch
                     WorkTypeDef extraWorkDef = new WorkTypeDef();
                     ExtraWorkGroup extraWorkCustoms = mod.extraWorks[extraIndex];
 
-                    string emptyValue = "personalWorkCategories_emptyValue".Translate().RawText;
-
                     extraWorkDef.defName = extraWorkCustoms.defName;
                     extraWorkDef.labelShort = extraWorkCustoms.labelShort;
-                    extraWorkDef.pawnLabel = string.IsNullOrEmpty(extraWorkCustoms.pawnLabel) ? emptyValue : extraWorkCustoms.pawnLabel;
-                    extraWorkDef.gerundLabel = string.IsNullOrEmpty(extraWorkCustoms.gerundLabel) ? emptyValue : extraWorkCustoms.gerundLabel;
-                    extraWorkDef.description = string.IsNullOrEmpty(extraWorkCustoms.description) ? emptyValue : extraWorkCustoms.description;
-                    extraWorkDef.verb = string.IsNullOrEmpty(extraWorkCustoms.verb) ? emptyValue : extraWorkCustoms.verb;
+                    extraWorkDef.pawnLabel = string.IsNullOrEmpty(extraWorkCustoms.pawnLabel) ? "personalWorkCategories_defaultPawnLabel".Translate().RawText : extraWorkCustoms.pawnLabel;
+                    extraWorkDef.gerundLabel = string.IsNullOrEmpty(extraWorkCustoms.gerundLabel) ? "personalWorkCategories_defaultGerungLabel".Translate().RawText : extraWorkCustoms.gerundLabel;
+                    extraWorkDef.description = string.IsNullOrEmpty(extraWorkCustoms.description) ? "personalWorkCategories_defaultDescription".Translate().RawText : extraWorkCustoms.description;
+                    extraWorkDef.verb = string.IsNullOrEmpty(extraWorkCustoms.verb) ? "personalWorkCategories_defaultVerb".Translate().RawText : extraWorkCustoms.verb;
+                    Converter<string, SkillDef> skillConverter = new Converter<string, SkillDef>(skillDefName => DefDatabase<SkillDef>.GetNamed(skillDefName));
+                    extraWorkDef.relevantSkills = extraWorkCustoms.skills.ConvertAll<SkillDef>(skillConverter);
 
                     WorkTypeDef rootDef = inGameWorkTypes.Find(wt => wt.defName == root);
                     if (rootDef != null)
@@ -114,7 +114,6 @@ namespace HandyUI_PersonalWorkCategories.Patch
                     WorkGiverDef workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(workGiver);
                     if (workGiverDef == null)
                     {
-                        Log.Message("Can't find work giver " + workGiver);
                         continue;
                     }
 

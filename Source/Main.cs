@@ -45,15 +45,17 @@ namespace HandyUI_PersonalWorkCategories
             Givers
         }
 
-        public struct Preset : IExposable
+        public class Preset : IExposable
         {
             public string name;
             public string hash;
+            public bool isAdvanced;
 
             public void ExposeData()
             {
                 Scribe_Values.Look<string>(ref name, "Name");
                 Scribe_Values.Look<string>(ref hash, "Hash");
+                Scribe_Values.Look<bool>(ref isAdvanced, "IsAdvanced");
             }
 
             public override string ToString()
@@ -94,6 +96,7 @@ namespace HandyUI_PersonalWorkCategories
             public string gerundLabel;
             public string description;
             public string verb;
+            public List<string> skills;
 
             void IExposable.ExposeData()
             {
@@ -104,6 +107,7 @@ namespace HandyUI_PersonalWorkCategories
                 Scribe_Values.Look<string>(ref gerundLabel, "GerundLabel");
                 Scribe_Values.Look<string>(ref description, "Description");
                 Scribe_Values.Look<string>(ref verb, "Verb");
+                Scribe_Collections.Look<string>(ref skills, "Skills");
             }
         }
 
@@ -130,6 +134,18 @@ namespace HandyUI_PersonalWorkCategories
 
         private List<Preset> presets;
         private string selectedPreset;
+        private Preset selectedPresetObj
+        {
+            get
+            {
+                if (presets != null)
+                {
+                    return presets.Find(p => p.name == selectedPreset);
+                }
+                
+                return null;
+            }
+        }
         private string editablePresetName;
         private const string DEFAULT_PRESET = "Default";
 
@@ -365,13 +381,13 @@ namespace HandyUI_PersonalWorkCategories
                             if (Widgets.ButtonText(resetToDefaultRect, "personalWorkCategories_resetToDefault".Translate(), true, true, true))
                             {
                                 List<string> defaultGivers = worksByPresets[DEFAULT_PRESET].GetByKey(selectedWorkType).ListFullCopy();
-                                foreach (ExtraWorkGroup ewg in extraWorks)
+                                foreach (string wt in works.GetKeysAsList())
                                 {
-                                    foreach (string workGiver in works.GetByKey(ewg.defName).ListFullCopy())
+                                    foreach (string workGiver in works.GetByKey(wt).ListFullCopy())
                                     {
                                         if (defaultGivers.Contains(workGiver))
                                         {
-                                            works.GetByKey(ewg.defName).Remove(workGiver);
+                                            works.GetByKey(wt).Remove(workGiver);
                                         }
                                     }
                                 }
@@ -389,17 +405,59 @@ namespace HandyUI_PersonalWorkCategories
                             leftPart.y += 5f;
                             Rect rightPart = initRect.RightPart(0.7f);
 
+                            float rowHeight = 35f;
+
                             Widgets.Label(leftPart, "personalWorkCategories_groupLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + 40f }, "personalWorkCategories_pawnLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + 80f }, "personalWorkCategories_gerungLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + 120f }, "personalWorkCategories_description".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + 160f }, "personalWorkCategories_verb".Translate() +  ":");
+                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight }, "personalWorkCategories_pawnLabel".Translate() + ":");
+                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 2 }, "personalWorkCategories_gerungLabel".Translate() + ":");
+                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 3 }, "personalWorkCategories_description".Translate() + ":");
+                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 4 }, "personalWorkCategories_verb".Translate() +  ":");
+                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 5 }, "personalWorkCategories_skills".Translate() + ":");
 
                             ewg.labelShort = Widgets.TextField(rightPart, ewg.labelShort);
-                            ewg.pawnLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + 40f }, ewg.pawnLabel);
-                            ewg.gerundLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + 80f }, ewg.gerundLabel);
-                            ewg.description = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + 120f }, ewg.description);
-                            ewg.verb = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + 160f }, ewg.verb);
+                            ewg.pawnLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight }, ewg.pawnLabel);
+                            ewg.gerundLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 2 }, ewg.gerundLabel);
+                            ewg.description = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 3 }, ewg.description);
+                            ewg.verb = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 4 }, ewg.verb);
+
+                            Rect skillsRect = new Rect(rightPart) { y = rightPart.y + rowHeight * 5, width = rightPart.width - 32f, height = rightPart.height - 5f };
+                            List<string> skillsNames = ewg.skills.ConvertAll<string>(new Converter<string, string>(s => DefDatabase<SkillDef>.GetNamed(s).label));
+                            Widgets.Label(new Rect(skillsRect) { y = skillsRect.y + 5f }, skillsNames.ToStringSafeEnumerable());
+                            if (selectedPresetObj.isAdvanced)
+                            {
+                                Rect changeRect = new Rect(skillsRect) { width = 15f, x = skillsRect.xMax + 2f };
+                                if (Widgets.ButtonText(changeRect, "+"))
+                                {
+                                    List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+                                    foreach (SkillDef skillDef in DefDatabase<SkillDef>.AllDefs.Where(sd => !ewg.skills.Contains(sd.defName)))
+                                    {
+                                        list.Add(new FloatMenuOption(skillDef.label, delegate ()
+                                        {
+                                            ewg.skills.Add(skillDef.defName);
+                                        }));
+                                    }
+
+                                    if (list.Count > 0)
+                                        Find.WindowStack.Add(new FloatMenu(list));
+                                }
+
+                                if (Widgets.ButtonText(new Rect(changeRect) { x = changeRect.xMax + 2f }, "-"))
+                                {
+                                    List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+                                    foreach (string skillDef in ewg.skills)
+                                    {
+                                        list.Add(new FloatMenuOption(DefDatabase<SkillDef>.GetNamed(skillDef).label, delegate ()
+                                        {
+                                            ewg.skills.Remove(skillDef);
+                                        }));
+                                    }
+
+                                    if (list.Count > 0)
+                                        Find.WindowStack.Add(new FloatMenu(list));
+                                }
+                            }
 
                             if (!extraWorks[extraIndex].Equals(ewg)) isChangesOccurred = true;
 
@@ -421,24 +479,39 @@ namespace HandyUI_PersonalWorkCategories
                         workTypesContainerHeight = curY - upperY;
                     }
 
-                    curY = inRect.yMax - (standartButtonHeight * 3 + 10f);
+                    curY = inRect.yMax - (standartButtonHeight * 3 + 15f);
 
-                    if (Widgets.ButtonText(
-                        new Rect(0, curY, centerX - HALFS_GAP, standartButtonHeight),
-                        "personalWorkCategories_createCustomGroup".Translate()))
+                    if (selectedPresetObj.isAdvanced)
                     {
-                        CreateNewCustomGroup();
+                        if (Widgets.ButtonText(
+                            new Rect(0, inRect.yMax - standartButtonHeight * 2 - 5f, centerX - HALFS_GAP, standartButtonHeight),
+                            "personalWorkCategories_createCustomGroup".Translate()))
+                        {
+                            CreateNewCustomGroup();
+                        }
                     }
+                    else
+                    {
+                        Rect enableAdvancedRect = new Rect(0, curY, centerX - HALFS_GAP, standartButtonHeight);
+                        if (Widgets.ButtonText(
+                            enableAdvancedRect, "personalWorkCategories_enableAdvancedMode".Translate()))
+                        {
+                            Preset preset = presets.Find(p => p.name == selectedPreset);
+                            if (preset != null) preset.isAdvanced = true;
+                        }
 
-                    curY += standartButtonHeight + 2f;
-                    Text.Font = GameFont.Tiny;
-                    GUI.color = Color.gray;
-                    Widgets.Label(new Rect(0, curY, centerX - HALFS_GAP, 100f),
-                        "personalWorkCategories_beCarefulWithCustomGroups".Translate()); ;
-                    Text.Font = GameFont.Small;
-                    GUI.color = Color.white;
+                        Widgets.DrawBoxSolid(enableAdvancedRect, new Color(1.0f, 0.35f, 0.0f, 0.3f));
 
-                    curY += standartButtonHeight + 5f;
+                        curY += standartButtonHeight;
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = Color.gray;
+                        Widgets.Label(new Rect(0, curY, centerX - HALFS_GAP, 100f),
+                            "personalWorkCategories_beCarefulWithAdvancedMode".Translate()); ;
+                        Text.Font = GameFont.Small;
+                        GUI.color = Color.white;
+
+                        curY += standartButtonHeight + 5f;
+                    }
 
                     if (true)
                     {
@@ -456,7 +529,7 @@ namespace HandyUI_PersonalWorkCategories
                     Text.Font = GameFont.Tiny;
                     GUI.color = Color.gray;
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(new Rect() { x = centerX, y = curY, xMax = inRect.xMax - CONTAINER_PADDING, height = 30f }, "personalWorkCategories_dragTheWorks".Translate());
+                    Widgets.Label(new Rect() { x = centerX, y = curY, xMax = inRect.xMax - CONTAINER_PADDING, height = 35f }, "personalWorkCategories_dragTheWorks".Translate());
                     Text.Font = GameFont.Small;
                     GUI.color = Color.white;
                     Text.Anchor = TextAnchor.UpperLeft;
@@ -505,55 +578,11 @@ namespace HandyUI_PersonalWorkCategories
                     {
                         x = center.x - standartButtonWidth / 2,
                         y = center.y - standartButtonHeight / 2 + 50f,
-                        width = standartButtonWidth,
+                        width = standartButtonWidth * 2f,
                         height = standartButtonHeight
-                    }, "personalWorkCategories_tryToFix".Translate()))
+                    }, "personalWorkCategories_createCopyWithChanges".Translate()))
                     {
-                        CopySelectedPresetAndSwitch("personalWorkCategories_fixed".Translate() + " ");
-
-                        OrderedDictionary<string, List<string>> defaultWorks = worksByPresets[DEFAULT_PRESET];
-                        List<string> defaultWorkTypes = defaultWorks.GetKeysAsList();
-                        List<string> currentWorksTypes = works.GetKeysAsList();
-
-                        //Delete deprecated works
-                        foreach (string workType in currentWorksTypes)
-                        {
-                            if (defaultWorkTypes.Contains(workType)) continue;
-                            ExtraWorkGroup extraWork = extraWorks.Find(ew => ew.defName == workType);
-                            if (defaultWorkTypes.Contains(extraWork.root)) continue;
-
-                            works.Remove(workType);
-                        }
-
-                        //Add new works
-                        foreach (string mayBeNewWorkType in defaultWorkTypes)
-                        {
-                            if (works.GetKeysAsList().Contains(mayBeNewWorkType)) continue;
-
-                            int insertedWorkPriority = DefDatabase<WorkTypeDef>.GetNamed(mayBeNewWorkType).naturalPriority;
-
-                            int insertIndex = -1;
-                            foreach (string compareWorkType in works.GetKeysAsList())
-                            {
-                                if (extraWorks.Any(ew => ew.defName == compareWorkType)) continue;
-                                int compareWorkPriority = DefDatabase<WorkTypeDef>.GetNamed(compareWorkType).naturalPriority;
-                                if (insertedWorkPriority > compareWorkPriority)
-                                {
-                                    insertIndex = works.IndexOf(compareWorkType);
-                                    break;
-                                }
-                            }
-
-                            List<WorkGiverDef> workGivers = DefDatabase<WorkGiverDef>.AllDefsListForReading.FindAll(wg => wg.workType.defName == mayBeNewWorkType);
-                            List<string> giversNames = workGivers.ConvertAll<string>(new Converter<WorkGiverDef, string>(wg => wg.defName));
-                            if (insertIndex >= 0)
-                                works.Insert(insertIndex, mayBeNewWorkType, giversNames);
-                            else
-                                works.Add(mayBeNewWorkType, giversNames);
-                        }
-
-                        int ind = presets.FindIndex(p => p.name == selectedPreset);
-                        presets[ind] = new Preset() { name = presets[ind].name, hash = defaultHash }; 
+                        TryToFixSelectedPreset();
                     }
                 }
             }
@@ -597,11 +626,15 @@ namespace HandyUI_PersonalWorkCategories
 
                     if (column == Category.Types && draggedElement.element.category == Category.Givers)
                     {
-                        string draggedDefaultRoot = GetDefaultTypeOfGiver(draggedElement.element.name);
-                        string thisRoot = GetRootOfWorkType(worksList.Current);
-                        bool isCustomGroup = (GetExtraWorkIndex(worksList.Current) >= 0 && thisRoot == worksList.Current);
+                        if (selectedPresetObj.isAdvanced) isAvailable = true;
+                        else
+                        {
+                            string draggedDefaultRoot = GetDefaultTypeOfGiver(draggedElement.element.name);
+                            string thisRoot = GetRootOfWorkType(worksList.Current);
+                            bool isCustomGroup = (GetExtraWorkIndex(worksList.Current) >= 0 && thisRoot == worksList.Current);
+                            isAvailable = draggedDefaultRoot == thisRoot || isCustomGroup;
+                        }
 
-                        isAvailable = draggedDefaultRoot == thisRoot || isCustomGroup;
                         if (isAvailable) status = ElementStatus.Available;
                         else status = ElementStatus.Forbidden;
                     }
@@ -897,8 +930,8 @@ namespace HandyUI_PersonalWorkCategories
 
             defaultWorkTypes.Sort((a, b) => a.naturalPriority >= b.naturalPriority ? -1 : 1);
 
-            string toHash = defaultWorkTypes.ToStringSafeEnumerable() + defaultWorkGivers.ToStringSafeEnumerable();
-            string newHash = Sha256Util.ComputeSha256Hash(toHash);
+            string stringToHash = defaultWorkTypes.ToStringSafeEnumerable() + defaultWorkGivers.ToStringSafeEnumerable();
+            string newHash = Sha256Util.ComputeSha256Hash(stringToHash);
 
             bool selectedPresetDeprecate = false;
             bool defaultPresetDeprecate = false;
@@ -906,6 +939,7 @@ namespace HandyUI_PersonalWorkCategories
             if (selectedPreset != DEFAULT_PRESET)
             {
                 int selectedPresetIndex = presets.FindIndex(p => p.name == selectedPreset);
+
                 if (selectedPresetIndex >= 0 && presets[selectedPresetIndex].hash != newHash)
                 {
                     selectedPreset = DEFAULT_PRESET;
@@ -1000,7 +1034,9 @@ namespace HandyUI_PersonalWorkCategories
         {
             string newPresetName = prefix + selectedPreset + postfix;
             CheckNameForUnique(ref newPresetName, presets);
-            presets.Add(new Preset() { name = newPresetName, hash = presets.Find(p => p.name == selectedPreset).hash });
+
+            Preset selected = presets.Find(p => p.name == selectedPreset);
+            presets.Add(new Preset() { name = newPresetName, hash = selected.hash, isAdvanced = selected.isAdvanced });
 
             OrderedDictionary<string, List<string>> newPreset = new OrderedDictionary<string, List<string>>();
             foreach(string workType in works.GetKeysAsList())
@@ -1042,6 +1078,8 @@ namespace HandyUI_PersonalWorkCategories
         private void DeleteSelectedGroup()
         {
             int extraIndex = GetExtraWorkIndex(selectedWorkType);
+            if (extraIndex < 0) return;
+
             string root = GetRootOfWorkType(selectedWorkType);
             List<string> currentGivers = works.GetByKey(selectedWorkType);
             string nowSelected = null;
@@ -1088,7 +1126,8 @@ namespace HandyUI_PersonalWorkCategories
                 pawnLabel = rootDef.pawnLabel,
                 gerundLabel = rootDef.gerundLabel,
                 description = rootDef.description,
-                verb = rootDef.verb
+                verb = rootDef.verb,
+                skills = rootDef.relevantSkills.ConvertAll<string>(new Converter<SkillDef, string>(s => s.defName))
             };
 
             extraWorks.Add(ewg);
@@ -1116,7 +1155,12 @@ namespace HandyUI_PersonalWorkCategories
             ExtraWorkGroup ewg = new ExtraWorkGroup
             {
                 defName = extraWorkGroupName,
-                labelShort = "personalWorkCategories_custom".Translate(),
+                labelShort = "personalWorkCategories_defaultGroupLabel".Translate(),
+                pawnLabel = "personalWorkCategories_defaultPawnLabel".Translate(),
+                gerundLabel = "personalWorkCategories_defaultGerungLabel".Translate(),
+                description = "personalWorkCategories_defaultDescription".Translate(),
+                verb = "personalWorkCategories_defaultVerb".Translate(),
+                skills = new List<string>()
             };
 
             extraWorks.Add(ewg);
@@ -1134,6 +1178,105 @@ namespace HandyUI_PersonalWorkCategories
             }
 
             selectedWorkType = extraWorkGroupName;
+        }
+        private void TryToFixSelectedPreset()
+        {
+            CopySelectedPresetAndSwitch("personalWorkCategories_fixed".Translate() + " ");
+
+            OrderedDictionary<string, List<string>> defaultWorks = worksByPresets[DEFAULT_PRESET];
+            List<string> defWTlist = defaultWorks.GetKeysAsList();
+            List<string> curWTlist = works.GetKeysAsList();
+
+            //Delete deprecated work types and givers
+            foreach (string curWT in curWTlist.ListFullCopy())
+            {
+                //check is work type deprecate
+                bool isWTDeprecate = true;
+                //if it is default group then not deprecated
+                if (defWTlist.Contains(curWT))
+                {
+                    isWTDeprecate = false;
+                }
+                else
+                {
+                    //if separated from the defaul group or is a custom group then not deprecated
+                    int extraIndex = extraWorks.FindIndex(ew => ew.defName == curWT);
+                    if (extraIndex >= 0)
+                    {
+                        ExtraWorkGroup extraWork2 = extraWorks[extraIndex];
+                        if (defWTlist.Contains(extraWork2.root) || string.IsNullOrEmpty(extraWork2.root))
+                        {
+                            isWTDeprecate = false;
+                        }
+                    }
+                }
+
+                //check givers of current type for deprecated
+                List<string> currentWorksGivers = works.GetByKey(curWT);
+                foreach (string workGiver in currentWorksGivers.ListFullCopy())
+                {
+                    string defaultTypeOfGiver = null;
+                    foreach (string defaultWorkType in defWTlist)
+                    {
+                        if (defaultWorks.GetByKey(defaultWorkType).Contains(workGiver))
+                        {
+                            defaultTypeOfGiver = defaultWorkType;
+                            break;
+                        }
+                    }
+
+                    if (isWTDeprecate && !string.IsNullOrEmpty(defaultTypeOfGiver))
+                    {
+                        WorkGiverDef workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(workGiver);
+                        workGiverDef.workType = DefDatabase<WorkTypeDef>.GetNamed(defaultTypeOfGiver);
+                    }
+                    else if (!isWTDeprecate && string.IsNullOrEmpty(defaultTypeOfGiver))
+                    {
+                        currentWorksGivers.Remove(workGiver);
+                    }
+                }
+
+
+                if (isWTDeprecate)
+                {
+                    works.Remove(curWT);
+
+                    int extraWorkIndex = extraWorks.FindIndex(ew => ew.defName == curWT);
+                    if (extraWorkIndex >= 0) extraWorks.RemoveAt(extraWorkIndex);
+                }
+            }
+
+            //Add new works
+            foreach (string mayBeNewWorkType in defWTlist)
+            {
+                if (works.GetKeysAsList().Contains(mayBeNewWorkType)) continue;
+
+                int insertedWorkPriority = DefDatabase<WorkTypeDef>.GetNamed(mayBeNewWorkType).naturalPriority;
+
+                int insertIndex = -1;
+                foreach (string compareWorkType in works.GetKeysAsList())
+                {
+                    if (extraWorks.Any(ew => ew.defName == compareWorkType)) continue;
+                    int compareWorkPriority = DefDatabase<WorkTypeDef>.GetNamed(compareWorkType).naturalPriority;
+                    if (insertedWorkPriority > compareWorkPriority)
+                    {
+                        insertIndex = works.IndexOf(compareWorkType);
+                        break;
+                    }
+                }
+
+                List<WorkGiverDef> workGivers = DefDatabase<WorkGiverDef>.AllDefsListForReading.FindAll(wg => wg.workType.defName == mayBeNewWorkType);
+                List<string> giversNames = workGivers.ConvertAll<string>(new Converter<WorkGiverDef, string>(wg => wg.defName));
+                if (insertIndex >= 0)
+                    works.Insert(insertIndex, mayBeNewWorkType, giversNames);
+                else
+                    works.Add(mayBeNewWorkType, giversNames);
+            }
+
+            int ind = presets.FindIndex(p => p.name == selectedPreset);
+
+            string defaultHash = presets.Find(p => p.name == DEFAULT_PRESET).hash;
+            presets[ind] = new Preset() { name = presets[ind].name, hash = defaultHash };
         }
     }
 }
