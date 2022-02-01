@@ -68,10 +68,14 @@
     <Compile Include="FloatingElement.cs" />
     <Compile Include="Patch\DefGenerator__patch.cs" />
     <Compile Include="Patch\MainMenuDrawer__patch.cs" />
-    <Compile Include="Utils\OrderedDictionary.cs" />
+    <Compile Include="Presets.cs" />
+    <Compile Include="Settings.cs" />
+    <Compile Include="Utils\CommonUtils.cs" />
+    <Compile Include="Utils\GetKeySafelyUtil.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils\Sha256Util.cs" />
+    <Compile Include="Works.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

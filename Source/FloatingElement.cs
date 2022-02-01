@@ -13,16 +13,16 @@ namespace HandyUI_PersonalWorkCategories
     {
         protected PersonalWorkCategoriesSettings settings;
         protected Rect rect;
-        public readonly WorkElement element;
+        public readonly WorkCommon element;
         protected static Vector2? dragOffset = new Vector2(-5f, -5f);
 
         public enum DragReaction { Nothing, Insert, Spread };
 
-        public FloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, Category category, string name, Vector2? dragOffset = null)
+        public FloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, WorkCommon element, Vector2? dragOffset = null)
         {
             this.settings = settings;
             this.rect = rect;
-            this.element = new WorkElement(category, name);
+            this.element = element;
 
             this.layer = WindowLayer.Super;
             this.closeOnClickedOutside = true;
@@ -30,7 +30,7 @@ namespace HandyUI_PersonalWorkCategories
             this.drawShadow = true;
         }
 
-        public abstract DragReaction DoDragReaction(Category category, string name, ElementStatus status);
+        public abstract DragReaction DoDragReaction(WorkCommon target, ElementStatus status);
 
         protected override float Margin
         {
@@ -88,18 +88,18 @@ namespace HandyUI_PersonalWorkCategories
 
     internal class WorkTypeFloatingElement : FloatingElement
     {
-        public WorkTypeFloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, string name) : base(settings, rect, Category.Types, name)
+        public WorkTypeFloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, WorkType workType) : base(settings, rect, workType)
         {
         }
 
         public override void DoWindowContents(Rect inRect)
         {
-            settings.DrawWorkTypeContent(inRect, element.name);
+            settings.DrawWorkTypeContent(inRect, (WorkType)element);
         }
 
-        public override DragReaction DoDragReaction(Category category, string name, ElementStatus status)
+        public override DragReaction DoDragReaction(WorkCommon target, ElementStatus status)
         {
-            if (category == Category.Types) return DragReaction.Spread;
+            if (target is WorkType) return DragReaction.Spread;
 
             return DragReaction.Nothing;
         }
@@ -107,27 +107,27 @@ namespace HandyUI_PersonalWorkCategories
 
     internal class WorkGiverFloatingElement : FloatingElement
     {
-        public WorkGiverFloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, string name) : base(settings, rect, Category.Givers, name)
+        public WorkGiverFloatingElement(PersonalWorkCategoriesSettings settings, Rect rect, WorkGiver workGiver) : base(settings, rect, workGiver)
         {
         }
 
         public override void DoWindowContents(Rect inRect)
         {
-            settings.DrawWorkGiverContent(inRect, element.name);
+            settings.DrawWorkGiverContent(inRect, (WorkGiver)element);
         }
 
-        public override DragReaction DoDragReaction(Category category, string name, ElementStatus status)
+        public override DragReaction DoDragReaction(WorkCommon target, ElementStatus status)
         {
-            if (category == Category.Types)
+            if (target is WorkType targetAsWorkType)
             {
                 if (status == ElementStatus.Available)
                 {
-                    settings.selectedWorkType = name;
+                    settings.SetSelectedWorkType(targetAsWorkType);
                     return DragReaction.Insert;
                 }
             }
 
-            if (category == Category.Givers) return DragReaction.Spread;
+            if (target is WorkGiver) return DragReaction.Spread;
 
             return DragReaction.Nothing;
         }

@@ -15,15 +15,43 @@ namespace HandyUI_PersonalWorkCategories.Patch
     {
         static void Postfix()
         {
-            if (PersonalWorkCategories.Settings.isNeedToShowWarning)
+            if (PersonalWorkCategories.Settings.isSavedDataVersionDeprecated)
             {
-                Find.WindowStack.Add(new WarningMessage());
+                Find.WindowStack.Add(new WarningMessage(
+                    "personalWorkCategories_warningHeader".Translate(),
+                    "personalWorkCategories_newVersionWarningMessage".Translate(),
+                    () => PersonalWorkCategories.Settings.isSavedDataVersionDeprecated = false));
+            }
+            if (PersonalWorkCategories.Settings.isWorksListWasChanged)
+            {
+                Find.WindowStack.Add(new WarningMessage(
+                    "personalWorkCategories_warningHeader".Translate(),
+                    "personalWorkCategories_warningBody".Translate(),
+                    () => PersonalWorkCategories.Settings.isWorksListWasChanged = false));
             }
         }
     }
 
+    delegate void PreClose();
+
     internal class WarningMessage : Window
     {
+        private string title;
+        private string message;
+        private PreClose preClose;
+
+        public WarningMessage(string title, string message, PreClose preClose)
+        {
+            this.title = title;
+            this.message = message;
+            this.preClose = preClose;
+
+            this.doCloseButton = true;
+            this.doCloseX = true;
+            this.forcePause = true;
+            this.absorbInputAroundWindow = false;
+        }
+
         public override Vector2 InitialSize
         {
             get
@@ -31,22 +59,15 @@ namespace HandyUI_PersonalWorkCategories.Patch
                 return new Vector2(500f, 300f);
             }
         }
-        public WarningMessage()
-        {
-            this.doCloseButton = true;
-            this.doCloseX = true;
-            this.forcePause = true;
-            this.absorbInputAroundWindow = false;
-        }
 
         public override void DoWindowContents(Rect inRect)
         {
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.UpperCenter;
-            Widgets.Label(inRect, "personalWorkCategories_warningHeader".Translate());
+            Widgets.Label(inRect, title);
             GUI.color = Color.gray;
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(inRect.ContractedBy(25f, 65f), "personalWorkCategories_warningBody".Translate());
+            Widgets.Label(inRect.ContractedBy(25f, 65f), message);
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
         }
@@ -54,7 +75,7 @@ namespace HandyUI_PersonalWorkCategories.Patch
         public override void PreClose()
         {
             base.PreClose();
-            PersonalWorkCategories.Settings.isNeedToShowWarning = false;
+            preClose();
         }
     }
 }

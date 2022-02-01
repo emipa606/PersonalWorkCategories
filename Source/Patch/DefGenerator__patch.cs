@@ -17,11 +17,11 @@ namespace HandyUI_PersonalWorkCategories.Patch
         {            
             try
             {
-                bool compareResult = PersonalWorkCategories.Settings.ProceedDefaultHashComparing(
+                bool IsChangesNeeded = PersonalWorkCategories.Settings.InitModSettings(
                     DefDatabase<WorkTypeDef>.AllDefsListForReading,
                     DefDatabase<WorkGiverDef>.AllDefsListForReading);
 
-                if (compareResult)
+                if (IsChangesNeeded)
                 {
                     ChangeWorkTypes();
                     ChangeWorkGivers();
@@ -42,61 +42,61 @@ namespace HandyUI_PersonalWorkCategories.Patch
 
             PersonalWorkCategoriesSettings mod = PersonalWorkCategories.Settings;
 
-            List<string> allWorkTypes = mod.works.GetKeysAsList();
+            List<WorkType> allWorkTypes = mod.selectedPreset.workTypes;
+            WorkTypeDef workTypeDef;
             int i = 0;
-            foreach (string workType in allWorkTypes)
+            foreach (WorkType workType in allWorkTypes)
             {
-                int extraIndex = mod.GetExtraWorkIndex(workType);
-
-                if (extraIndex >= 0)
+                if (workType.IsExtra())
                 {
-                    string root = mod.GetRootOfWorkType(workType);
+                    WorkType.ExtraData extraData = workType.extraData;
 
-                    WorkTypeDef extraWorkDef = new WorkTypeDef();
-                    ExtraWorkGroup extraWorkCustoms = mod.extraWorks[extraIndex];
+                    workTypeDef = new WorkTypeDef();
 
-                    extraWorkDef.defName = extraWorkCustoms.defName;
-                    extraWorkDef.labelShort = extraWorkCustoms.labelShort;
-                    extraWorkDef.pawnLabel = string.IsNullOrEmpty(extraWorkCustoms.pawnLabel) ? "personalWorkCategories_defaultPawnLabel".Translate().RawText : extraWorkCustoms.pawnLabel;
-                    extraWorkDef.gerundLabel = string.IsNullOrEmpty(extraWorkCustoms.gerundLabel) ? "personalWorkCategories_defaultGerungLabel".Translate().RawText : extraWorkCustoms.gerundLabel;
-                    extraWorkDef.description = string.IsNullOrEmpty(extraWorkCustoms.description) ? "personalWorkCategories_defaultDescription".Translate().RawText : extraWorkCustoms.description;
-                    extraWorkDef.verb = string.IsNullOrEmpty(extraWorkCustoms.verb) ? "personalWorkCategories_defaultVerb".Translate().RawText : extraWorkCustoms.verb;
-                    Converter<string, SkillDef> skillConverter = new Converter<string, SkillDef>(skillDefName => DefDatabase<SkillDef>.GetNamed(skillDefName));
-                    extraWorkDef.relevantSkills = extraWorkCustoms.skills.ConvertAll<SkillDef>(skillConverter);
+                    workTypeDef.defName = workType.defName;
+                    workTypeDef.labelShort = extraData.labelShort;
+                    workTypeDef.pawnLabel = string.IsNullOrEmpty(extraData.pawnLabel) ? "personalWorkCategories_defaultPawnLabel".Translate().RawText : extraData.pawnLabel;
+                    workTypeDef.gerundLabel = string.IsNullOrEmpty(extraData.gerundLabel) ? "personalWorkCategories_defaultGerungLabel".Translate().RawText : extraData.gerundLabel;
+                    workTypeDef.description = string.IsNullOrEmpty(extraData.description) ? "personalWorkCategories_defaultDescription".Translate().RawText : extraData.description;
+                    workTypeDef.verb = string.IsNullOrEmpty(extraData.verb) ? "personalWorkCategories_defaultVerb".Translate().RawText : extraData.verb;
+                    workTypeDef.relevantSkills = extraData.skills.ConvertAll(s => DefDatabase<SkillDef>.GetNamed(s));
 
-                    WorkTypeDef rootDef = inGameWorkTypes.Find(wt => wt.defName == root);
-                    if (rootDef != null)
+                    if (workType.IsRooted())
                     {
-                        extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
-                        extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
-                        extraWorkDef.workTags = rootDef.workTags;
-                        extraWorkDef.relevantSkills = rootDef.relevantSkills;
-                        extraWorkDef.alwaysStartActive = rootDef.alwaysStartActive;
-                        extraWorkDef.disabledForSlaves = rootDef.disabledForSlaves;
-                        extraWorkDef.requireCapableColonist = rootDef.requireCapableColonist;
+                        WorkTypeDef rootDef = inGameWorkTypes.Find(wt => wt.defName == workType.extraData.root);
+                        if (rootDef == null)
+                        {
+                            Log.Message("Can't find work type " + workType.defName);
+                            continue;
+                        }
+
+                        workTypeDef.alwaysStartActive = rootDef.alwaysStartActive;
+                        workTypeDef.requireCapableColonist = rootDef.requireCapableColonist;
+                        workTypeDef.workTags = rootDef.workTags;
+                        workTypeDef.relevantSkills = rootDef.relevantSkills;
+                        workTypeDef.alwaysStartActive = rootDef.alwaysStartActive;
+                        workTypeDef.disabledForSlaves = rootDef.disabledForSlaves;
+                        workTypeDef.requireCapableColonist = rootDef.requireCapableColonist;
                     }
-
-                    extraWorkDef.naturalPriority = (allWorkTypes.Count - i) * 50;
-                    if (mod.works.GetByKey(workType).Count <= 0) extraWorkDef.visible = false;
-
-                    moddedWorkTypes.Add(extraWorkDef);
                 }
                 else
                 {
-                    WorkTypeDef workTypeDef = inGameWorkTypes.Find(wt => wt.defName == workType);
+                    workTypeDef = inGameWorkTypes.Find(wt => wt.defName == workType.defName);
                     if (workTypeDef == null)
                     {
-                        Log.Message("Can't find work type " + workType);
+                        Log.Message("Can't find work type " + workType.defName);
                         continue;
                     }
-                    workTypeDef.naturalPriority = (allWorkTypes.Count - i) * 50;
-                    if (mod.works.GetByKey(workType).Count <= 0) workTypeDef.visible = false;
-
-                    moddedWorkTypes.Add(workTypeDef);
                 }
+
+                workTypeDef.naturalPriority = (allWorkTypes.Count - i) * 50;
+                if (workType.workGivers.Count <= 0) workTypeDef.visible = false;
+
+                moddedWorkTypes.Add(workTypeDef);
 
                 i++;
             }
+
             DefDatabase<WorkTypeDef>.Add(moddedWorkTypes);
         }
 
@@ -104,21 +104,22 @@ namespace HandyUI_PersonalWorkCategories.Patch
         {
             PersonalWorkCategoriesSettings mod = PersonalWorkCategories.Settings;
 
-            List<string> allWorkTypes = mod.works.GetKeysAsList();
-            foreach (string workType in allWorkTypes)
+            List<WorkType> allWorkTypes = mod.selectedPreset.workTypes;
+            foreach (WorkType workType in allWorkTypes)
             {
-                List<string> allWorkGivers = mod.works.GetByKey(workType);
                 int i = 0;
-                foreach (string workGiver in allWorkGivers)
+                foreach (WorkGiver workGiver in workType.workGivers.ListFullCopy())
                 {
-                    WorkGiverDef workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(workGiver);
+                    WorkGiverDef workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(workGiver.defName);
                     if (workGiverDef == null)
                     {
+                        workType.workGivers.Remove(workGiver);
+                        Log.Message("Can't find work giver " + workGiver.defName);
                         continue;
                     }
 
-                    workGiverDef.workType = DefDatabase<WorkTypeDef>.GetNamed(workType);
-                    workGiverDef.priorityInType = (allWorkGivers.Count - i) * 10;
+                    workGiverDef.workType = DefDatabase<WorkTypeDef>.GetNamed(workType.defName);
+                    workGiverDef.priorityInType = (workType.workGivers.Count - i) * 10;
                     i++;
                 }
             }
