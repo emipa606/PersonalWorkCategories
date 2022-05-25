@@ -50,6 +50,15 @@ namespace HandyUI_PersonalWorkCategories
         public Preset selectedPreset;
         private string editablePresetName;
 
+        private enum MainMenuContent
+        {
+            empty,
+            preset,
+            workType
+        }
+
+        private MainMenuContent mainMenuContent = MainMenuContent.empty;
+
         private PresetManager PM;
 
         private Type currentMouseOverColumnType;
@@ -64,13 +73,22 @@ namespace HandyUI_PersonalWorkCategories
 
         delegate void DrawElementFunc<W>(Rect rowRect, W work, ElementStatus status) where W : WorkCommon;
 
-        private float presetsContainerHeight = 0f;
-        private float workTypesContainerHeight = 0f;
-        internal bool isWorksListWasChanged;
-        internal bool isSavedDataVersionDeprecated;
+        public bool isWorksListWasChanged;
+        public bool isSavedDataVersionDeprecated;
 
-        const float elementHeight = 50f;
-        const float elementGap = 4f;
+        private bool isDefaultPreset;
+        private bool isHashesMatchUp;
+
+        const float ELEMENT_HEIGHT = 50f;
+        const float ELEMENT_GAP = 4f;
+
+        const float COLUMN_GAP = 5f;
+        const float HALFS_GAP = 10f;
+        const float BUTTONS_GAP = 5f;
+        const float CONTAINER_PADDING = 10f;
+        const float CONTAINERS_GAP = 10f;
+
+        const float BUTTON_HEIGHT = 30f;
 
         public override void ExposeData()
         {
@@ -120,38 +138,126 @@ namespace HandyUI_PersonalWorkCategories
 
                 if (Scribe.mode == LoadSaveMode.LoadingVars)
                 {
-                    setSelectedPreset(PM.presets.Find(p => p.name == selectedPresetName));
+                    SetSelectedPreset(PM.presets.Find(p => p.name == selectedPresetName));
                 }
             }
         }
 
         internal void DoWindowContents(Rect inRect)
         {
+            if (PM == null) return;
+
             //Log.Clear();
             inRect.yMax -= 10f;
 
-            float upperY = 45f;
-            float curX = 0f; ;
-            float curY = upperY;
-            float centerX = inRect.xMax / 2f;
-            const float COLUMN_GAP = 5f;
-            const float HALFS_GAP = 10f;
-            const float BUTTONS_GAP = 5f;
-            float columnWidth = (centerX - COLUMN_GAP) / 2f;
-            const float CONTAINER_PADDING = 10f;
+            isDefaultPreset = selectedPreset == PM.DEFAULT_PRESET;
+            isHashesMatchUp = PM.DEFAULT_PRESET.hash == selectedPreset.hash;
 
-            Rect presetsContainer = new Rect(curX, upperY, centerX - HALFS_GAP, presetsContainerHeight);
+            Rect leftPartRect = inRect.LeftHalf();
+            leftPartRect.xMax -= HALFS_GAP / 2;
+
+            DrawPresetsContainer(ref leftPartRect);
+
+            if (!isDefaultPreset)
+            {
+                if (isHashesMatchUp)
+                {
+                    DrawMainMenu(ref leftPartRect);
+                    DrawFooter(ref leftPartRect);
+
+                    Rect rightPartRect = inRect.RightHalf();
+                    rightPartRect.xMin += HALFS_GAP / 2;
+                    DrawElementsMenu(ref rightPartRect);
+                }
+                else
+                {
+                    Rect rect = new Rect(inRect) { yMin = leftPartRect.yMin };
+
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    Text.Font = GameFont.Medium;
+                    GUI.color = Color.gray;
+                    Widgets.Label(rect, "personalWorkCategories_presetDoesNotMatch".Translate());
+                    Text.Anchor = TextAnchor.UpperLeft;
+                    Text.Font = GameFont.Small;
+                    GUI.color = Color.white;
+
+                    float buttonWidth = 200f;
+                    Vector2 center = rect.center;
+                    if (Widgets.ButtonText(new Rect()
+                    {
+                        x = center.x - buttonWidth / 2,
+                        y = center.y - BUTTON_HEIGHT / 2 + 50f,
+                        width = buttonWidth,
+                        height = BUTTON_HEIGHT
+                    }, "personalWorkCategories_createCopyWithChanges".Translate()))
+                    {
+                        TryToFixSelectedPreset();
+                    }
+                }
+            }
+            else
+            {
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Text.Font = GameFont.Medium;
+                GUI.color = Color.gray;
+                Rect rect = new Rect(inRect) { yMin = leftPartRect.yMin };
+                Widgets.Label(rect, "personalWorkCategories_cantChangeDefault".Translate());
+                Text.Anchor = TextAnchor.UpperLeft;
+                Text.Font = GameFont.Small;
+                GUI.color = Color.white;
+            }
+        }
+
+        private void DrawElementsMenu(ref Rect contentRect)
+        {
+            Text.Font = GameFont.Tiny;
+            GUI.color = Color.gray;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Rect smallInstructionRect = new Rect(contentRect) { height = 35f };
+            Widgets.Label(smallInstructionRect, "personalWorkCategories_dragTheWorks".Translate());
+            Text.Font = GameFont.Small;
+            GUI.color = Color.white;
+            Text.Anchor = TextAnchor.UpperLeft;
+
+            Rect workTypesRect = new Rect(contentRect) { y = smallInstructionRect.yMax, width = (contentRect.width - COLUMN_GAP) / 2, yMax = contentRect.yMax };
+
+            dropTarget.Reset();
+            currentMouseOverColumnType = null;
+            elementsColumnHeight = workTypesRect.height;
+
+            DrawList<WorkType>(workTypesRect, ref workTypesScrollPosition, selectedPreset.workTypes,
+                (elemtnRect, work, status) => { DrawWorkTypeElement(elemtnRect, work, status); });
+
+            Rect workGiversRect = new Rect(workTypesRect) { x = workTypesRect.xMax + COLUMN_GAP };
+
+            if (selectedWorkType == null)
+            {
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.gray;
+                Widgets.Label(workGiversRect, "personalWorkCategories_selectWorkType".Translate());
+                Text.Anchor = TextAnchor.UpperLeft;
+                GUI.color = Color.white;
+            }
+            else
+            {
+                DrawList<WorkGiver>(workGiversRect, ref workGiversScrollPosition, selectedWorkType.workGivers,
+                    (elemtnRect, work, status) => { DrawWorkGiverElement(elemtnRect, work, status); });
+            }
+        }
+
+        private void DrawPresetsContainer(ref Rect contentRect)
+        {
+            Rect presetsContainer = new Rect(contentRect) { height = 100f };
             Widgets.DrawLightHighlight(presetsContainer);
 
-            curX += CONTAINER_PADDING;
-            curY += CONTAINER_PADDING;
+            contentRect.yMin = presetsContainer.yMax + CONTAINERS_GAP;
 
-            float standartButtonWidth = (centerX - HALFS_GAP - 2f * CONTAINER_PADDING - BUTTONS_GAP * 2f) / 3f;
-            float standartButtonHeight = 35f;
+            Rect paddedRect = presetsContainer.ContractedBy(CONTAINER_PADDING);
 
-            Rect firstButRect = new Rect(curX, curY, standartButtonWidth, standartButtonHeight);
+            float buttonWidth = (paddedRect.width - BUTTONS_GAP * 2) / 3f;
 
-            if (Widgets.ButtonText(firstButRect, "personalWorkCategories_selectPreset".Translate(), true, true, true))
+            Rect selectPresetRect = new Rect(paddedRect.x, paddedRect.y, buttonWidth, BUTTON_HEIGHT);
+            if (Widgets.ButtonText(selectPresetRect, "personalWorkCategories_selectPreset".Translate()))
             {
                 List<FloatMenuOption> list = new List<FloatMenuOption>();
 
@@ -166,276 +272,202 @@ namespace HandyUI_PersonalWorkCategories
                 Find.WindowStack.Add(new FloatMenu(list));
             }
 
-            if (Widgets.ButtonText(new Rect(firstButRect) { x = firstButRect.x + firstButRect.width + BUTTONS_GAP }, "personalWorkCategories_copyPreset".Translate(), true, true, true))
+            if (Widgets.ButtonText(new Rect(selectPresetRect) { x = selectPresetRect.x + selectPresetRect.width + BUTTONS_GAP }, "personalWorkCategories_copyPreset".Translate()))
             {
                 Preset newPreset = PM.CopyPreset(selectedPreset, "", " " + "personalWorkCategories_copy".Translate());
                 SwitchPresetTo(newPreset);
             }
 
-            bool isDefaultPreset = selectedPreset == PM.DEFAULT_PRESET;
-            Rect deleteButRect = new Rect(firstButRect) { x = firstButRect.x + (firstButRect.width + BUTTONS_GAP) * 2 };
+            Rect deleteButRect = new Rect(selectPresetRect) { x = selectPresetRect.x + (selectPresetRect.width + BUTTONS_GAP) * 2 };
 
             if (!isDefaultPreset)
             {
-                if (Widgets.ButtonText(deleteButRect, "personalWorkCategories_deletePreset".Translate(), true, true, !isDefaultPreset))
+                if (Widgets.ButtonText(deleteButRect, "personalWorkCategories_deletePreset".Translate()))
                 {
                     int index = PM.DeletePreset(selectedPreset);
-                    if (index >= 0)
-                        SwitchPresetTo(PM.presets[index - 1]);
-                    else
-                        SwitchPresetTo(PM.presets[PM.presets.IndexOf(PM.DEFAULT_PRESET)]);
+                    if (index <= 0) SwitchPresetTo(PM.DEFAULT_PRESET);
+                    else SwitchPresetTo(PM.presets[index - 1]);
                 }
             }
-            /*
-            else
-            {
-                if (Widgets.CustomButtonText(ref deleteButRect, "personalWorkCategories_deletePreset".Translate(), Color.gray, Color.white, Color.black))
-                {
-                    SoundDefOf.ClickReject.PlayOneShotOnCamera();
-                }
-            }
-            */
 
-            curY += 45f;
-
-            Rect presetLabelRect = new Rect(curX, curY + 5f, 66f, 30f);
+            Rect presetLabelRect = new Rect(selectPresetRect.x, selectPresetRect.y + 50f, 66f, BUTTON_HEIGHT);
             Widgets.Label(presetLabelRect, "personalWorkCategories_current".Translate() + ": ");
 
-            Rect presetNameRect = new Rect(presetLabelRect.xMax + 5f, curY, centerX - HALFS_GAP - 2 * CONTAINER_PADDING - presetLabelRect.xMax, 30f);
+            Rect presetNameRect = new Rect(presetLabelRect)
+            {
+                x = presetLabelRect.xMax + 5f,
+                y = presetLabelRect.y - 5f,
+                xMax = paddedRect.xMax 
+            };
             if (!isDefaultPreset)
             {
                 if (editablePresetName == null) editablePresetName = selectedPreset.name;
-                editablePresetName = Widgets.TextField(presetNameRect, editablePresetName, 30, Outfit.ValidNameRegex);
+                Rect editablePresetFieldRect = new Rect(presetNameRect) { xMax = paddedRect.xMax - buttonWidth - BUTTONS_GAP };
+                editablePresetName = Widgets.TextField(editablePresetFieldRect, editablePresetName, 30, Outfit.ValidNameRegex);
+
+                if (Widgets.ButtonText(new Rect(editablePresetFieldRect) { xMin = editablePresetFieldRect.xMax + BUTTONS_GAP, width = buttonWidth }, "personalWorkCategories_presetSettigns".Translate()))
+                {
+                    mainMenuContent = MainMenuContent.preset;
+                }
             }
             else
                 Widgets.Label(new Rect(presetNameRect) { x = presetNameRect.x + 3f, y = presetNameRect.y + 5f, height = presetNameRect.height - 5f }, selectedPreset.name);
+        }
 
-            curY += 30f;
-
-            curX -= CONTAINER_PADDING;
-            curY += CONTAINER_PADDING;
-
-            presetsContainerHeight = curY - upperY;
-
-            if (!isDefaultPreset)
+        private void DrawFooter(ref Rect contentRect)
+        {
+            Rect rebootGameRect = new Rect(contentRect) { y = contentRect.yMax - BUTTON_HEIGHT, height = BUTTON_HEIGHT };
+            if (Widgets.ButtonText(rebootGameRect, "personalWorkCategories_rebootGame".Translate()))
             {
-                string defaultHash = PM.DEFAULT_PRESET.hash;
-                string currentHash = selectedPreset.hash;
+                Write();
+                GenCommandLine.Restart();
+            }
 
-                if (defaultHash == currentHash)
+            if (selectedPreset.isAdvanced)
+            {
+                Rect createCustomRect = new Rect(rebootGameRect) { y = rebootGameRect.yMin - BUTTON_HEIGHT - BUTTONS_GAP };
+                Button_CreateCustomGroup(createCustomRect);
+            }
+        }
+
+        private void DrawMainMenu(ref Rect contentRect)
+        {
+            if (mainMenuContent == MainMenuContent.empty) return;
+
+            Rect mainMenuContainer = new Rect(contentRect) { height = 330f };
+            Widgets.DrawLightHighlight(mainMenuContainer);
+
+            contentRect.yMin = mainMenuContainer.yMax + CONTAINERS_GAP;
+
+            Rect paddedRect = mainMenuContainer.ContractedBy(CONTAINER_PADDING);
+
+            switch (mainMenuContent)
+            {
+                case MainMenuContent.workType:
+                    DrawWorkTypeSettings(paddedRect);
+                    break;
+
+                case MainMenuContent.preset:
+                    DrawPresetSettings(paddedRect);
+                    break;
+            }
+        }
+
+        private void DrawPresetSettings(Rect paddedRect)
+        {
+            Button_EnableAdvancedMode(ref paddedRect);
+        }
+
+        private void DrawWorkTypeSettings(Rect contentRect)
+        {
+            if (selectedWorkType != null)
+            {
+                Text.Font = GameFont.Medium;
+                Rect selectedTypeLabelRect = new Rect(contentRect) { height = 50f };
+                Widgets.Label(selectedTypeLabelRect, selectedWorkType.GetLabel());
+                Text.Font = GameFont.Small;
+
+                float buttonWidth = (contentRect.width - BUTTONS_GAP * 2) / 3f;
+
+                Rect initRect = new Rect(contentRect) { y = selectedTypeLabelRect.yMax, height = BUTTON_HEIGHT };
+                Rect leftPart = initRect.LeftPart(0.3f);
+                leftPart.y += 5f;
+                Rect rightPart = initRect.RightPart(0.7f);
+
+                float rowHeight = BUTTON_HEIGHT + 5f;
+
+                Widgets.Label(leftPart, "personalWorkCategories_groupLabel".Translate() + ":");
+                Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight }, "personalWorkCategories_pawnLabel".Translate() + ":");
+                Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 2 }, "personalWorkCategories_gerungLabel".Translate() + ":");
+                Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 3 }, "personalWorkCategories_description".Translate() + ":");
+                Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 4 }, "personalWorkCategories_verb".Translate() + ":");
+                Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 5 }, "personalWorkCategories_skills".Translate() + ":");
+
+                if (!selectedWorkType.IsExtra())
                 {
-                    if (selectedWorkType != null)
+                    rightPart.y += 5f;
+                    rightPart.height = 20f;
+
+                    WorkTypeDef workTypeDef = DefDatabase<WorkTypeDef>.GetNamed(selectedWorkType.defName);
+
+                    Widgets.Label(rightPart, workTypeDef.labelShort);
+                    Widgets.Label(new Rect(rightPart) { y = rightPart.y + rowHeight }, workTypeDef.pawnLabel);
+                    Widgets.Label(new Rect(rightPart) { y = rightPart.y + rowHeight * 2 }, workTypeDef.gerundLabel);
+                    Widgets.Label(new Rect(rightPart) { y = rightPart.y + rowHeight * 3 }, workTypeDef.description);
+                    Widgets.Label(new Rect(rightPart) { y = rightPart.y + rowHeight * 4 }, workTypeDef.verb);
+
+                    Widgets.Label(new Rect(rightPart) { y = rightPart.y + rowHeight * 5 }, workTypeDef.relevantSkills.ConvertAll(sd => sd.label).ToStringSafeEnumerable());
+
+                    Rect splitWorkTypeRect = new Rect(contentRect.x, contentRect.yMax - BUTTON_HEIGHT, buttonWidth, BUTTON_HEIGHT);
+                    if (Widgets.ButtonText(splitWorkTypeRect, "personalWorkCategories_splitGroup".Translate()))
                     {
-                        curY += 10f;
-                        upperY = curY;
-
-                        Rect workTypesContainer = new Rect(presetsContainer) { y = curY, height = workTypesContainerHeight };
-                        Widgets.DrawLightHighlight(workTypesContainer);
-
-                        curX += CONTAINER_PADDING;
-                        curY += CONTAINER_PADDING;
-
-                        Text.Font = GameFont.Medium;
-                        Rect selectedTypeLabelRect = new Rect(curX, curY + 5f, centerX - HALFS_GAP - 2 * CONTAINER_PADDING, 50f);
-                        Widgets.Label(selectedTypeLabelRect, selectedWorkType.GetLabel());
-                        Text.Font = GameFont.Small;
-
-                        curY += selectedTypeLabelRect.height;
-
-                        if (!selectedWorkType.IsExtra())
+                        if (selectedPreset.SplitWorkType(selectedWorkType.defName) is WorkType newWorkType)
                         {
-                            Rect splitWorkTypeRect = new Rect(curX, curY, standartButtonWidth, standartButtonHeight);
-                            if (Widgets.ButtonText(splitWorkTypeRect, "personalWorkCategories_splitGroup".Translate(), true, true, true))
-                            {
-                                if (selectedPreset.SplitWorkType(selectedWorkType.defName) is WorkType newWorkType)
-                                {
-                                    SetSelectedWorkType(newWorkType);
-                                }
-                            }
-
-                            Rect resetToDefaultRect = new Rect(splitWorkTypeRect) { x = splitWorkTypeRect.x + (splitWorkTypeRect.width + BUTTONS_GAP) * 1 };
-                            if (Widgets.ButtonText(resetToDefaultRect, "personalWorkCategories_resetToDefault".Translate(), true, true, true))
-                            {
-                                PM.SetWorkTypeContentToDefault(selectedPreset, selectedWorkType.defName);
-                            }
-
-                            curY += splitWorkTypeRect.height;
-                        }
-                        else
-                        {
-                            WorkType.ExtraData extraData = selectedWorkType.extraData;
-
-                            Rect initRect = new Rect(curX, curY, centerX - HALFS_GAP - 2 * CONTAINER_PADDING, 30f);
-                            Rect leftPart = initRect.LeftPart(0.3f);
-                            leftPart.y += 5f;
-                            Rect rightPart = initRect.RightPart(0.7f);
-
-                            float rowHeight = 35f;
-
-                            Widgets.Label(leftPart, "personalWorkCategories_groupLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight }, "personalWorkCategories_pawnLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 2 }, "personalWorkCategories_gerungLabel".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 3 }, "personalWorkCategories_description".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 4 }, "personalWorkCategories_verb".Translate() + ":");
-                            Widgets.Label(new Rect(leftPart) { y = leftPart.y + rowHeight * 5 }, "personalWorkCategories_skills".Translate() + ":");
-
-                            extraData.labelShort = Widgets.TextField(rightPart, extraData.labelShort);
-                            extraData.pawnLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight }, extraData.pawnLabel);
-                            extraData.gerundLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 2 }, extraData.gerundLabel);
-                            extraData.description = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 3 }, extraData.description);
-                            extraData.verb = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 4 }, extraData.verb);
-
-                            Rect skillsRect = new Rect(rightPart) { y = rightPart.y + rowHeight * 5, width = rightPart.width - 32f, height = rightPart.height - 5f };
-                            Widgets.Label(new Rect(skillsRect) { y = skillsRect.y + 5f }, extraData.skills.ToStringSafeEnumerable());
-
-                            if (selectedPreset.isAdvanced)
-                            {
-                                Rect changeRect = new Rect(skillsRect) { width = 15f, x = skillsRect.xMax + 2f };
-                                if (Widgets.ButtonText(changeRect, "+"))
-                                {
-                                    List<FloatMenuOption> list = new List<FloatMenuOption>();
-
-                                    foreach (SkillDef skillDef in DefDatabase<SkillDef>.AllDefs.Where(sd => !extraData.skills.Contains(sd.defName)))
-                                    {
-                                        list.Add(new FloatMenuOption(skillDef.label, delegate ()
-                                        {
-                                            extraData.skills.Add(skillDef.defName);
-                                        }));
-                                    }
-
-                                    if (list.Count > 0)
-                                        Find.WindowStack.Add(new FloatMenu(list));
-                                }
-
-                                if (Widgets.ButtonText(new Rect(changeRect) { x = changeRect.xMax + 2f }, "-"))
-                                {
-                                    List<FloatMenuOption> list = new List<FloatMenuOption>();
-
-                                    foreach (string skillDefName in extraData.skills)
-                                    {
-                                        list.Add(new FloatMenuOption(DefDatabase<SkillDef>.GetNamed(skillDefName).label, delegate ()
-                                        {
-                                            extraData.skills.Remove(skillDefName);
-                                        }));
-                                    }
-
-                                    if (list.Count > 0)
-                                        Find.WindowStack.Add(new FloatMenu(list));
-                                }
-                            }
-
-                            curY += 220f;
-
-                            Rect deleteGroupButRect = new Rect(curX, curY, standartButtonWidth, standartButtonHeight);
-                            if (Widgets.ButtonText(deleteGroupButRect, "personalWorkCategories_deleteGroup".Translate(), true, true, true))
-                            {
-                                DeleteSelectedType();
-                            }
-                            curY += deleteGroupButRect.height;
-                        }
-
-
-                        curX -= CONTAINER_PADDING;
-                        curY += CONTAINER_PADDING;
-
-                        workTypesContainerHeight = curY - upperY;
-                    }
-
-                    curY = inRect.yMax - (standartButtonHeight * 3 + 15f);
-
-                    if (selectedPreset.isAdvanced)
-                    {
-                        Rect buttonRect = new Rect(0, inRect.yMax - standartButtonHeight * 2 - 5f, centerX - HALFS_GAP, standartButtonHeight);
-                        curY += Button_CreateCustomGroup(buttonRect);
-                    }
-                    else
-                    {
-
-                        Rect buttonRect = new Rect(0, curY, centerX - HALFS_GAP, standartButtonHeight);
-                        curY += Button_EnableAdvancedMode(buttonRect);
-                    }
-
-                    if (true)
-                    {
-                        if (Widgets.ButtonText(
-                            new Rect(0, inRect.yMax - standartButtonHeight, centerX - HALFS_GAP, standartButtonHeight),
-                            "personalWorkCategories_rebootGame".Translate()))
-                        {
-                            Write();
-                            GenCommandLine.Restart();
+                            SetSelectedWorkType(newWorkType);
                         }
                     }
 
-                    // right window part
-                    curY = 45f;
-                    Text.Font = GameFont.Tiny;
-                    GUI.color = Color.gray;
-                    Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(new Rect() { x = centerX, y = curY, xMax = inRect.xMax - CONTAINER_PADDING, height = 35f }, "personalWorkCategories_dragTheWorks".Translate());
-                    Text.Font = GameFont.Small;
-                    GUI.color = Color.white;
-                    Text.Anchor = TextAnchor.UpperLeft;
-
-                    curY += 35f;
-                    Rect workTypesRect = new Rect(inRect) { x = centerX, y = curY, width = columnWidth, yMax = inRect.yMax };
-                    elementsColumnHeight = workTypesRect.height;
-
-                    dropTarget.Reset();
-                    currentMouseOverColumnType = null;
-
-                    DrawList<WorkType>(workTypesRect, ref workTypesScrollPosition, selectedPreset.workTypes,
-                        (elemtnRect, work, status) => { DrawWorkTypeElement(elemtnRect, work, status); });
-
-                    Rect workGiversRect = new Rect(workTypesRect) { x = workTypesRect.xMax + COLUMN_GAP };
-
-                    if (selectedWorkType == null)
+                    Rect resetToDefaultRect = new Rect(splitWorkTypeRect) { x = splitWorkTypeRect.x + (splitWorkTypeRect.width + BUTTONS_GAP) * 1 };
+                    if (Widgets.ButtonText(resetToDefaultRect, "personalWorkCategories_resetToDefault".Translate()))
                     {
-                        Text.Anchor = TextAnchor.MiddleCenter;
-                        GUI.color = Color.gray;
-                        Widgets.Label(workGiversRect, "personalWorkCategories_selectWorkType".Translate());
-                        Text.Anchor = TextAnchor.UpperLeft;
-                        GUI.color = Color.white;
-                    }
-                    else
-                    {
-                        DrawList<WorkGiver>(workGiversRect, ref workGiversScrollPosition, selectedWorkType.workGivers,
-                            (elemtnRect, work, status) => { DrawWorkGiverElement(elemtnRect, work, status); });
+                        PM.SetWorkTypeContentToDefault(selectedPreset, selectedWorkType.defName);
                     }
                 }
                 else
                 {
-                    Rect rect = new Rect(0f, curY, inRect.xMax, inRect.yMax - curY);
+                    WorkType.ExtraData extraData = selectedWorkType.extraData;
 
-                    Text.Anchor = TextAnchor.MiddleCenter;
-                    Text.Font = GameFont.Medium;
-                    GUI.color = Color.gray;
-                    Widgets.Label(rect, "personalWorkCategories_presetDoesNotMatch".Translate());
-                    Text.Anchor = TextAnchor.UpperLeft;
-                    Text.Font = GameFont.Small;
-                    GUI.color = Color.white;
+                    extraData.labelShort = Widgets.TextField(rightPart, extraData.labelShort);
+                    extraData.pawnLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight }, extraData.pawnLabel);
+                    extraData.gerundLabel = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 2 }, extraData.gerundLabel);
+                    extraData.description = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 3 }, extraData.description);
+                    extraData.verb = Widgets.TextField(new Rect(rightPart) { y = rightPart.y + rowHeight * 4 }, extraData.verb);
 
-                    Vector2 center = rect.center;
-                    if (Widgets.ButtonText(new Rect()
+                    Rect skillsRect = new Rect(rightPart) { y = rightPart.y + rowHeight * 5, width = rightPart.width - 32f, height = rightPart.height - 5f };
+                    Widgets.Label(new Rect(skillsRect) { y = skillsRect.y + 5f }, extraData.skills.ConvertAll(s => DefDatabase<SkillDef>.GetNamed(s).label).ToStringSafeEnumerable());
+
+                    if (selectedPreset.isAdvanced)
                     {
-                        x = center.x - standartButtonWidth / 2,
-                        y = center.y - standartButtonHeight / 2 + 50f,
-                        width = standartButtonWidth * 2f,
-                        height = standartButtonHeight
-                    }, "personalWorkCategories_createCopyWithChanges".Translate()))
+                        Rect changeRect = new Rect(skillsRect) { width = 15f, x = skillsRect.xMax + 2f };
+                        if (Widgets.ButtonText(changeRect, "+"))
+                        {
+                            List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+                            foreach (SkillDef skillDef in DefDatabase<SkillDef>.AllDefs.Where(sd => !extraData.skills.Contains(sd.defName)))
+                            {
+                                list.Add(new FloatMenuOption(skillDef.label, delegate ()
+                                {
+                                    extraData.skills.Add(skillDef.defName);
+                                }));
+                            }
+
+                            if (list.Count > 0)
+                                Find.WindowStack.Add(new FloatMenu(list));
+                        }
+
+                        if (Widgets.ButtonText(new Rect(changeRect) { x = changeRect.xMax + 2f }, "-"))
+                        {
+                            List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+                            foreach (string skillDefName in extraData.skills)
+                            {
+                                list.Add(new FloatMenuOption(DefDatabase<SkillDef>.GetNamed(skillDefName).label, delegate ()
+                                {
+                                    extraData.skills.Remove(skillDefName);
+                                }));
+                            }
+
+                            if (list.Count > 0)
+                                Find.WindowStack.Add(new FloatMenu(list));
+                        }
+                    }
+
+                    Rect deleteGroupButRect = new Rect(contentRect.x, contentRect.yMax - BUTTON_HEIGHT, buttonWidth, BUTTON_HEIGHT);
+                    if (Widgets.ButtonText(deleteGroupButRect, "personalWorkCategories_deleteGroup".Translate(), true, true, true))
                     {
-                        TryToFixSelectedPreset();
+                        DeleteSelectedType();
                     }
                 }
-            }
-            else
-            {
-                Text.Anchor = TextAnchor.MiddleCenter;
-                Text.Font = GameFont.Medium;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(0f, curY, inRect.xMax, inRect.yMax - curY), "personalWorkCategories_cantChangeDefault".Translate());
-                Text.Anchor = TextAnchor.UpperLeft;
-                Text.Font = GameFont.Small;
-                GUI.color = Color.white;
             }
         }
 
@@ -446,8 +478,8 @@ namespace HandyUI_PersonalWorkCategories
             bool isMouseOver = Mouse.IsOver(inRect);
             if (isMouseOver) currentMouseOverColumnType = contentType;
 
-            Rect elementRect = new Rect(0f, 0f, inRect.width - 18f, elementHeight);
-            Rect viewRect = new Rect(elementRect) { height = works.Count * (elementRect.height + elementGap) };
+            Rect elementRect = new Rect(0f, 0f, inRect.width - 18f, ELEMENT_HEIGHT);
+            Rect viewRect = new Rect(elementRect) { height = works.Count * (elementRect.height + ELEMENT_GAP) };
 
             Widgets.BeginScrollView(inRect, ref scrollPosition, viewRect);
             float yPosition = 0f;
@@ -498,11 +530,11 @@ namespace HandyUI_PersonalWorkCategories
                     {
                         if (reaction == FloatingElement.DragReaction.Spread)
                         {
-                            yPosition += elementRect.yMax + elementGap;
+                            yPosition += elementRect.yMax + ELEMENT_GAP;
                         }
                     }
                     drawElement(new Rect(elementRect) { y = yPosition }, work, status);
-                    yPosition += elementRect.yMax + elementGap;
+                    yPosition += elementRect.yMax + ELEMENT_GAP;
                 }
             }
 
@@ -671,7 +703,7 @@ namespace HandyUI_PersonalWorkCategories
             if (PM == null)
             {
                 PM = new PresetManager(defaultWorkTypes, defaultWorkGivers);
-                setSelectedPreset(PM.DEFAULT_PRESET);
+                SetSelectedPreset(PM.DEFAULT_PRESET);
 
                 newHash = PM.DEFAULT_PRESET.hash;
             }
@@ -713,10 +745,10 @@ namespace HandyUI_PersonalWorkCategories
                 PM.RenamePreset(selectedPreset, editablePresetName);
 
             SetSelectedWorkType(null);
-            setSelectedPreset(target);
+            SetSelectedPreset(target);
         }
 
-        internal void setSelectedPreset(Preset preset)
+        internal void SetSelectedPreset(Preset preset)
         {
             selectedPreset = preset;
             editablePresetName = preset.name;
@@ -792,23 +824,30 @@ namespace HandyUI_PersonalWorkCategories
         {
             selectedWorkType = workTypeToSelect;
 
-            if (workTypeToSelect == null) return;
+            if (workTypeToSelect == null)
+            {
+                mainMenuContent = MainMenuContent.empty;
+                return;
+            }
+            else
+            {
+                mainMenuContent = MainMenuContent.workType;
+            }
 
-            float yPos = selectedPreset.workTypes.IndexOf(selectedWorkType) * (elementHeight + elementGap);
+            float yPos = selectedPreset.workTypes.IndexOf(selectedWorkType) * (ELEMENT_HEIGHT + ELEMENT_GAP);
 
-            Log.Message(yPos + ", " + workTypesScrollPosition.y + ", " + elementsColumnHeight);
+            Log.Message("scroll: " + workTypesScrollPosition.y + " pos: " + yPos + " height: " + elementsColumnHeight);
             if (yPos < workTypesScrollPosition.y)
             {
                 workTypesScrollPosition.y = yPos;
             }
-            else if (yPos + elementHeight + elementGap > workTypesScrollPosition.y + elementsColumnHeight)
+            else if (yPos + ELEMENT_HEIGHT + ELEMENT_GAP > workTypesScrollPosition.y + elementsColumnHeight)
             {
-                Log.Message(yPos + ", " + workTypesScrollPosition.y + elementsColumnHeight);
-                workTypesScrollPosition.y = yPos - elementsColumnHeight + elementHeight + elementGap;
+                workTypesScrollPosition.y = yPos - elementsColumnHeight + ELEMENT_HEIGHT + ELEMENT_GAP;
             }
         }
 
-        private float Button_CreateCustomGroup(Rect buttonRect)
+        private void Button_CreateCustomGroup(Rect buttonRect)
         {
             if (Widgets.ButtonText(buttonRect, "personalWorkCategories_createCustomGroup".Translate()))
             {
@@ -818,30 +857,65 @@ namespace HandyUI_PersonalWorkCategories
                     SetSelectedWorkType(customWorkType);
                 }
             }
-
-            return buttonRect.height + 5f;
         }
 
-        private float Button_EnableAdvancedMode(Rect buttonRect)
+        private void Button_EnableAdvancedMode(ref Rect contentRect)
         {
-            if (Widgets.ButtonText(buttonRect, "personalWorkCategories_enableAdvancedMode".Translate()))
+            Rect buttonRect = new Rect(contentRect) { height = BUTTON_HEIGHT };
+            if (!selectedPreset.isAdvanced)
             {
-                selectedPreset.isAdvanced = true;
+                if (Widgets.ButtonText(buttonRect, "personalWorkCategories_enableAdvancedMode".Translate()))
+                {
+                    selectedPreset.isAdvanced = true;
+                }
+
+                Widgets.DrawBoxSolid(buttonRect, new Color(1.0f, 0.35f, 0.0f, 0.3f));
+            }
+            else
+            {
+                Text.Font = GameFont.Medium;
+                GUI.color = Color.gray;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(buttonRect, "personalWorkCategories_advancedModeEnabled".Translate()); ;
+                Text.Font = GameFont.Small;
+                GUI.color = Color.white;
+                Text.Anchor = TextAnchor.UpperLeft;
             }
 
-            Widgets.DrawBoxSolid(buttonRect, new Color(1.0f, 0.35f, 0.0f, 0.3f));
-
-            float height = buttonRect.height;
             Text.Font = GameFont.Tiny;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(buttonRect.x, buttonRect.y + height, buttonRect.width, 100f),
-                "personalWorkCategories_beCarefulWithAdvancedMode".Translate()); ;
+            Rect advancedWorkWarningMode = new Rect(buttonRect) { y = buttonRect.yMax, height = 50f };
+            Widgets.Label(advancedWorkWarningMode, "personalWorkCategories_beCarefulWithAdvancedMode".Translate()); ;
             Text.Font = GameFont.Small;
             GUI.color = Color.white;
 
-            height += buttonRect.height + 5f;
+            Rect separateBuildWorksRect = new Rect(advancedWorkWarningMode) { y = advancedWorkWarningMode.yMax, height = BUTTON_HEIGHT };
 
-            return height;
+            bool checkboxValue = selectedPreset.isBuildingWorksSplitted;
+            Widgets.CheckboxLabeled(separateBuildWorksRect, "personalWorkCategories_splitBuildingWorks".Translate(), ref checkboxValue);
+
+            if (checkboxValue != selectedPreset.isBuildingWorksSplitted)
+            {
+                if (checkboxValue)
+                {
+                    WorkGiver placeFrame = selectedPreset.FindWorkGiverByDefName(Const.PLACE_FRAME_DEF_NAME);
+                    WorkType placeFrameGroup = selectedPreset.FindWorkTypeOfWorkGiver(placeFrame);
+                    WorkGiver placeQualityFrame = new WorkGiver(placeFrame) { defName = Const.PLACE_QUALITY_FRAME_DEF_NAME };
+
+                    int index = placeFrameGroup.workGivers.IndexOf(placeFrame);
+                    placeFrameGroup.workGivers.Insert(index, placeQualityFrame);
+                }
+                else
+                {
+                    WorkGiver placeQualityFrame = selectedPreset.FindWorkGiverByDefName(Const.PLACE_QUALITY_FRAME_DEF_NAME);
+                    WorkType placeFrameGroup = selectedPreset.FindWorkTypeOfWorkGiver(placeQualityFrame);
+                    placeFrameGroup.workGivers.Remove(placeQualityFrame);
+                }
+
+                selectedPreset.isBuildingWorksSplitted = checkboxValue;
+            }
+
+            contentRect.yMin = separateBuildWorksRect.yMax;
         }
     }
 }

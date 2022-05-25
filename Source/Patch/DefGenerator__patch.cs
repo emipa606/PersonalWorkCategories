@@ -113,9 +113,17 @@ namespace HandyUI_PersonalWorkCategories.Patch
                     WorkGiverDef workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(workGiver.defName);
                     if (workGiverDef == null)
                     {
-                        workType.workGivers.Remove(workGiver);
-                        Log.Message("Can't find work giver " + workGiver.defName);
-                        continue;
+                        if (mod.selectedPreset.isBuildingWorksSplitted && workGiverDef.defName == Const.PLACE_QUALITY_FRAME_DEF_NAME)
+                        {
+                            WorkGiverDef placeFrameDef = DefDatabase<WorkGiverDef>.GetNamed(Const.PLACE_FRAME_DEF_NAME);
+                            WorkGiverDef placeQualityFrameDef = placeFrameDef.MemberwiseClone();
+                        }
+                        else
+                        {
+                            workType.workGivers.Remove(workGiver);
+                            Log.Message("Can't find work giver " + workGiver.defName);
+                            continue;
+                        }
                     }
 
                     workGiverDef.workType = DefDatabase<WorkTypeDef>.GetNamed(workType.defName);

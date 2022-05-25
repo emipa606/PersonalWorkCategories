@@ -83,11 +83,11 @@ namespace HandyUI_PersonalWorkCategories
             if (preset == DEFAULT_PRESET) return -1;
 
             int presetIndex = userPresets.IndexOf(preset);
-            if (presetIndex < 0) return -1;
+            if (presetIndex < 0) return presetIndex;
 
             userPresets.RemoveAt(presetIndex);
 
-            return presetIndex;
+            return presetIndex + 1;
         }
 
         public bool SetWorkTypeContentToDefault(Preset selectedPreset, string workTypeDefName)
@@ -127,6 +127,19 @@ namespace HandyUI_PersonalWorkCategories
         public string name;
         public string hash;
         public bool isAdvanced;
+        public bool isBuildingWorksSplitted;
+
+        public WorkGiver FindWorkGiverByDefName(string defName)
+        {
+            foreach (WorkType workType in workTypes)
+            {
+                WorkGiver workGiver = workType.workGivers.Find(wg => wg.defName == defName);
+                if (workGiver != null) return workGiver;
+            }
+
+            return null;
+        }
+
         public List<WorkType> workTypes = new List<WorkType>();
 
         public Preset() {}
@@ -150,6 +163,7 @@ namespace HandyUI_PersonalWorkCategories
             Scribe_Values.Look<string>(ref name, "Name");
             Scribe_Values.Look<string>(ref hash, "Hash");
             Scribe_Values.Look<bool>(ref isAdvanced, "IsAdvanced");
+            Scribe_Values.Look<bool>(ref isBuildingWorksSplitted, "IsBuildingWorksSplitted");
             Scribe_Collections.Look<WorkType>(ref workTypes, "WorkTypes");
         }
 

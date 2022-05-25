@@ -21,12 +21,10 @@ namespace HandyUI_PersonalWorkCategories
             new Harmony("densevoid.hui.personalworkcat").PatchAll(Assembly.GetExecutingAssembly());
         }
 
-
         public override string SettingsCategory()
         {
             return "Personal Work Categories";
         }
-
 
         public override void DoSettingsWindowContents(Rect inRect)
         {

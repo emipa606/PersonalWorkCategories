@@ -65,6 +65,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Const.cs" />
     <Compile Include="FloatingElement.cs" />
     <Compile Include="Patch\DefGenerator__patch.cs" />
     <Compile Include="Patch\MainMenuDrawer__patch.cs" />
