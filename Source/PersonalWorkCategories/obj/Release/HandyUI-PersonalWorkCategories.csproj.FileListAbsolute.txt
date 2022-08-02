@@ -1,0 +1,7 @@
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Assemblies\HandyUI-PersonalWorkCategories.dll
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.csproj.AssemblyReference.cache
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.GeneratedMSBuildEditorConfig.editorconfig
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.AssemblyInfoInputs.cache
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.AssemblyInfo.cs
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.csproj.CoreCompileInputs.cache
+E:\SteamLibrary\steamapps\common\RimWorld\Mods\PersonalWorkCategories\Source\PersonalWorkCategories\obj\Release\HandyUI-PersonalWorkCategories.dll
